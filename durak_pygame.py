@@ -168,7 +168,12 @@ player2_won = False
 attack_player = 1
 running = True
 game_end = False
-card_pos_dict = {}
+card_pos_dict = {
+    'm_size_x' : 95,
+    'm_size_y' : 55,
+    'm_cord_x' : 880,
+    'm_cord_y' : 470,
+}
 
 # main cycle
 while running:
@@ -222,6 +227,8 @@ while running:
     # mouse on card input
     mouse_pos = pygame.mouse.get_pos()
     mouse_lock = None
+    if button_0.collidepoint(mouse_pos):
+        mouse_lock = -1
     for num, button in enumerate(all_buttons):
         if button.collidepoint(mouse_pos):
             mouse_lock = num
@@ -249,7 +256,26 @@ while running:
 
     """ OUTPUT """
     screen.fill((0, 55, 0))
-    screen.blit(textures['button'], (890, 470)) # button to change player
+
+    # button to change player and it's animation
+    if mouse_lock == -1:
+        if card_pos_dict['m_size_x'] < 104:
+            card_pos_dict['m_size_x'] += 2
+            card_pos_dict['m_size_y'] += 2
+            card_pos_dict['m_cord_x'] -= 1
+            card_pos_dict['m_cord_y'] -= 1
+    elif  96 < card_pos_dict['m_size_x']:
+        card_pos_dict['m_size_x'] -= 2
+        card_pos_dict['m_size_y'] -= 2
+        card_pos_dict['m_cord_x'] += 1
+        card_pos_dict['m_cord_y'] += 1
+    textures['button'] = pygame.transform.scale(textures['button'], (card_pos_dict['m_size_x'], card_pos_dict['m_size_y']))
+    screen.blit(textures['button'], (card_pos_dict['m_cord_x'], card_pos_dict['m_cord_y']))
+
+
+
+
+
     x_cord = 15
     #for card in player2_deck: # bot cards output
         #screen.blit(textures['face_down'], (x_cord, 60))
@@ -266,13 +292,10 @@ while running:
         if card not in card_pos_dict:
             card_pos_dict[card] = 600
         if mouse_lock == index:
-            if 570 <= card_pos_dict[card] <= 600:
+            if 570 <= card_pos_dict[card]:
                 card_pos_dict[card] -= 5
-        else:
-            if card_pos_dict[card] <= 595:
-                card_pos_dict[card] += 5
-            else:
-                card_pos_dict[card] = 600
+        elif card_pos_dict[card] <= 595:
+            card_pos_dict[card] += 5
         y_cord = card_pos_dict[card]
         screen.blit(textures['empty_card'], (x_cord, y_cord))
         screen.blit(textures[card[-2:]], (x_cord, y_cord))
