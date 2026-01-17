@@ -10,6 +10,7 @@ table_at_deck  = []    # attack deck
 table_def_deck = []    # defence deck
 full_card_deck = []    # all cards deck
 trump_card     = ''    # trump card
+animation_list = []
 
 
 def create_deck():
@@ -24,13 +25,17 @@ def create_deck():
     full_card_deck = card_deck.copy()
     trump_card = card_deck[0]
 
-def take_from_deck(player_deck):
+def take_from_deck(player_deck,animation_active = True):
     """fill player deck with cards"""
     player_take = True  # has 6 cards
     while player_take:
         if card_deck != [] and len(player_deck) < 6:
+            if animation_active:
+                if player_deck == player1_deck:
+                    animation_list.append(('pla','back'))
+                else:
+                    animation_list.append(('bot','back'))
             player_deck.append(card_deck.pop()) #pop(-1)
-            time.sleep(0.2)
         else:
             player_take = False
 
@@ -100,8 +105,8 @@ def defence_button(number,player_deck):
 
 # creating decks
 create_deck()
-take_from_deck(player1_deck)
-take_from_deck(player2_deck)
+take_from_deck(player1_deck,False)
+take_from_deck(player2_deck,False)
 
 
 # pygame initialization
@@ -168,6 +173,8 @@ player2_won = False
 attack_player = 1
 running = True
 game_end = False
+anim_bool = True
+animation = ''
 card_pos_dict = {
     'm_size_x' : 95,
     'm_size_y' : 55,
@@ -272,12 +279,9 @@ while running:
     textures['button'] = pygame.transform.scale(textures['button'], (card_pos_dict['m_size_x'], card_pos_dict['m_size_y']))
     screen.blit(textures['button'], (card_pos_dict['m_cord_x'], card_pos_dict['m_cord_y']))
 
-
-
-
-
+    # bot cards output
     x_cord = 15
-    #for card in player2_deck: # bot cards output
+    #for card in player2_deck:
         #screen.blit(textures['face_down'], (x_cord, 60))
         #x_cord += 105
     for card in player2_deck: # op cards output for testing
@@ -287,7 +291,8 @@ while running:
         x_cord += 105
     x_cord = 15
 
-    for index, card in enumerate(player1_deck): # player cards output
+    # player cards output
+    for index, card in enumerate(player1_deck):
         # Y cord calculation
         if card not in card_pos_dict:
             card_pos_dict[card] = 600
@@ -309,16 +314,12 @@ while running:
         screen.blit(textures['deck_side'], (875, 320))
         font = pygame.font.Font(None, 50)
         text = font.render(str(len(card_deck)), True, (0, 0, 0))
-        screen.blit(text, (1000, 370))\
+        screen.blit(text, (1000, 370))
 
-    active_card_taking = 0
-    if active_card_taking:
-        pass
-
-
+    # attack output
     x_cord = 40
     y_cord = 340
-    for card in table_at_deck: # attack output
+    for card in table_at_deck:
         screen.blit(textures['empty_card'], (x_cord, y_cord))
         screen.blit(textures[card[-2:]], (x_cord, y_cord))
         screen.blit(textures[card[0]], (x_cord, y_cord))
@@ -326,9 +327,11 @@ while running:
         if y_cord == 340:
             y_cord = 310
         else: y_cord = 340
+
+    # defence output
     x_cord = 60
     y_cord = 360
-    for card in table_def_deck: # defence output
+    for card in table_def_deck:
         screen.blit(textures['empty_card'], (x_cord, y_cord))
         screen.blit(textures[card[-2:]], (x_cord, y_cord))
         screen.blit(textures[card[0]], (x_cord, y_cord))
@@ -337,6 +340,26 @@ while running:
             y_cord = 330
         else:
             y_cord = 360
+
+    # taking cards from deck animation
+    if animation_list != []:
+        if anim_bool:
+            animation = animation_list.pop(0)
+            anim_bool = False
+            card_pos_dict['anim_x_cord'] = 890
+            card_pos_dict['anim_y_cord'] = 320
+    if 'anim_x_cord' in card_pos_dict:
+        if card_pos_dict['anim_x_cord'] > 350:
+            card_pos_dict['anim_x_cord'] -= 50
+            if animation[0] == 'pla':
+                card_pos_dict['anim_y_cord'] += 25
+            else:
+                card_pos_dict['anim_y_cord'] -= 25
+            x_cord = card_pos_dict['anim_x_cord']
+            y_cord = card_pos_dict['anim_y_cord']
+            screen.blit(textures['face_down'], (x_cord, y_cord))
+            if not card_pos_dict['anim_x_cord'] > 350:
+                anim_bool = True
 
     # if anyone wins
     if player1_won:
