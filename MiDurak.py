@@ -10,6 +10,9 @@ table_def_deck    = []    # defence deck
 animation_list    = []    # list with cards to animate(fron deck to player)
 anim_at_table     = []    # list with cards to animate(fron player to table)
 anim_def_table    = []
+anim_at_player    = []
+anim_def_player   = []
+take_f_deck_queue = []
 all_addable_cards = []    # list of cards to add when attacking (only numbers)
 trump_card        = ''    # trump card
 want_to_grab      = 0
@@ -19,12 +22,6 @@ win_happened      = False
 
 
 """Game Functions"""
-
-class Cards:
-    def __init__(self,cards):
-        self.cards = cards
-        self.x_cords = 0
-        self.y_cords = 0
 
 def create_deck():
     """creating a deck of cards"""
@@ -103,12 +100,13 @@ def win_check():
         end_font = pygame.font.Font("font/pixel_font.ttf", 70)
         end_text = end_font.render(final_text, True, (0, 0, 0))
         screen.blit(end_text, (end_x_cord, 350))
-    if player1_deck == [] and card_deck == []:
-        end_screen(500,'You Win!')
-        win_happened = True
-    if player2_deck == [] and card_deck == []:
-        end_screen(250,'Opponent Wins!')
-        win_happened = True
+    if not card_deck and not anim_def_table:
+        if not player1_deck:
+            end_screen(500,'You Win!')
+            win_happened = True
+        if not player2_deck:
+            end_screen(250,'Opponent Wins!')
+            win_happened = True
 
 def first_beat() -> bool:
     """checks if the first cards were beaten"""
@@ -155,15 +153,16 @@ def player_change_def(player_deck):
     if able_to_grab:
         for card_at in table_at_deck:
             player_deck.append(card_at)
+            anim_at_player.append((card_at, table_at_deck.index(card_at), player_deck.index(card_at), want_to_grab))
         for card_def in table_def_deck:
             player_deck.append(card_def)
+            anim_def_player.append((card_def, table_def_deck.index(card_def), player_deck.index(card_def), want_to_grab))
         # taking cards
         take_from_deck(op_deck(player_deck))
         # cleaning the table
         table_at_deck = []
         table_def_deck = []
         able_to_grab = False
-        print('want to grab turns off')
         want_to_grab = 0
 
 def attack_button(number,player_deck):
@@ -254,7 +253,7 @@ def defence_calc(bot_move,player_deck) -> str:
 
 def bot_brain(player_deck):
     """makes a bot move"""
-    global all_addable_cards,able_to_grab
+    global all_addable_cards,able_to_grab, want_to_grab
     bot_move = []
     if player_deck == player1_deck:
         number = 1
@@ -269,11 +268,9 @@ def bot_brain(player_deck):
                 if not table_at_deck or cards[-2:] in all_addable_cards:
                     bot_move.append(cards)
             final_move = attack_calc(bot_move)
-            print(first_beat(),len(table_at_deck))
             if final_move == "":
                 if want_to_grab == op_num:
                     able_to_grab = True
-                    # time.sleep(2)
                     player_change_def(op_deck(player_deck))
                 else:
                     player_change_at(player_deck)
@@ -298,7 +295,7 @@ def bot_brain(player_deck):
                     bot_move.append(cards)
             final_move = defence_calc(bot_move, player2_deck)
             if final_move == "" or (want_to_grab == number and able_to_grab):
-                player_change_def(player_deck)
+                want_to_grab = number
                 return
             elif want_to_grab != number:
                 table_def_deck.append(final_move)
@@ -382,6 +379,7 @@ running = True
 anim_bool = True
 anim2_bool = True
 anim3_bool = True
+anim4_bool = True
 animation = ''
 anim_dict = {}
 card_pos_dict = {
@@ -438,8 +436,7 @@ while running:
         # defence input
         elif event.type == pygame.MOUSEBUTTONDOWN and attack_player == 2 and len(table_at_deck) >= len(table_def_deck):
             if button_0.collidepoint(event.pos):
-                player_change_def(player1_deck)
-                print('button 0 pressed')
+                want_to_grab = 1
             for num, button in enumerate(all_buttons):
                 if button.collidepoint(event.pos):
                     defence_button(num,player1_deck)
@@ -510,12 +507,12 @@ while running:
     y_cord = 340 + y_add
     for card in table_at_deck:
         if anim_at_table and anim_at_table[-1][0] == card:
-            a_start_x = 15 + 105 * anim_at_table[-1][2]
-            if anim_at_table[-1][1] == 2:
-                a_start_y = 60
-            else:
-                a_start_y = 600
             if anim3_bool:
+                a_start_x = 15 + 105 * anim_at_table[-1][2]
+                if anim_at_table[-1][1] == 1:
+                    a_start_y = 600
+                else:
+                    a_start_y = 60
                 a_final_x = 40 + 125 * anim_at_table[-1][3]
                 a_final_y = y_cord
                 a_diff_x = (a_final_x - a_start_x) / 10
@@ -578,6 +575,35 @@ while running:
             y_cord = 330 + y_add
         else:
             y_cord = 360 + y_add
+
+    #taking cards animation
+    if anim_at_player and anim_at_player[-1][0] == card:
+        print("works2")
+        if anim4_bool:
+            print("works1")
+            ap_start_x = x_cord
+            ap_start_y = y_cord
+            ap_final_x = 15 + 105 * anim_at_player[-1][1]
+            if anim_at_player[-1][-1] == 1:
+                ap_final_y = 600
+            else:
+                ap_final_y = 60
+            ap_diff_x = (ap_final_x - ap_start_x) / 100
+            ap_diff_y = (ap_final_y - ap_start_y) / 100
+            ap_active_x = ap_start_x
+            ap_active_y = ap_start_y
+            anim4_bool = False
+        if ap_start_x <= ap_active_x <= ap_final_x - ap_diff_x or ap_start_x >= ap_active_x >= ap_final_x - ap_diff_x:
+            ap_active_x += ap_diff_x
+            ap_active_y += ap_diff_y
+        else:
+            anim4_bool = True
+            del anim_at_player[-1]
+        x_output = ap_active_x
+        y_output = ap_active_y
+        screen.blit(textures['empty_card'], (x_output, y_output))
+        screen.blit(textures[card[-2:]], (x_output, y_output))
+        screen.blit(textures[card[0]], (x_output, y_output))
 
     #timer output
     x_length = timer(player1_deck) / 6
@@ -653,7 +679,8 @@ while running:
             if not card_pos_dict['anim_x_cord'] > 350:
                 del animation_list[0]
                 anim_bool = True
-
+    print("anim_at_player", anim_at_player)
+    print("anim_at_table" , anim_at_table)
     # if anyone wins
     win_check()
     # end of the tick
