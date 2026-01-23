@@ -142,6 +142,18 @@ def free_to_move() -> bool:
     else:
         return False
 
+def menu_button_anim(pos_dict, text_up, text_down, menu_y_cord):
+    menu_size = card_pos_dict[pos_dict] * 2
+    menu_dev_2 = int(card_pos_dict[pos_dict] / 2)
+    textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420 + menu_size, 100 + menu_size))
+    screen.blit(textures['menu_button'], (525 - card_pos_dict[pos_dict], menu_y_cord - card_pos_dict[pos_dict]))
+    menu_font = pygame.font.Font("font/pixel_font.ttf", 40 + menu_dev_2)
+    if menu_mode:
+        menu_text = menu_font.render(text_up, True, (0, 0, 0))
+    else:
+        menu_text = menu_font.render(text_down, True, (0, 0, 0))
+    return menu_text, (570 - card_pos_dict[pos_dict], menu_y_cord + 30 - menu_dev_2)
+
 def win_check():
     """check if player won and stop the game"""
     def end_screen(final_text):
@@ -430,6 +442,7 @@ pygame.init()
 screen = pygame.display.set_mode((1500, 800))
 screen = pygame.display.set_mode((1500, 800), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
+background_color = (0, 55, 0)
 
 # textures
 textures = {
@@ -569,7 +582,6 @@ while running:
 
     """ OUTPUT """
     # background
-    background_color = (0, 55, 0)
     screen.fill(background_color)
     screen.blit(textures['table'], (5, 235))
 
@@ -632,7 +644,7 @@ while running:
 
     # bot cards output
     for index, card in enumerate(player2_deck):
-        x_cord = 15 + 105 * index
+        # card pop up when taking from deck
         card_pop = True
         index_list = 10
         for index2 in range(len(animation_list)):
@@ -640,12 +652,12 @@ while running:
                 index_list = animation_list[index2][1]
         if not (index_list == 10 or index_list > index):
             card_pop = False
-        if card in table_at_deck or card in table_def_deck:
-            card_pop = False
+        # card pop up when taking from table
         if card in animated_def_cards or card in animated_at_cards:
             card_pop = True
+        # output
         if card_pop:
-            screen.blit(textures['face_down'], (x_cord, 60))
+            screen.blit(textures['face_down'], (15 + 105 * index, 60))
             # to see bot cards
             '''
             screen.blit(textures['empty_card'], (x_cord, 60))
@@ -658,8 +670,8 @@ while running:
         if card not in player1_deck:
             del card_anim_dict[card]
     for index, card in enumerate(player1_deck):
+        # cord calculation
         x_cord = 15 + 105 * index
-        # Y cord calculation
         if card not in card_anim_dict:
             card_anim_dict[card] = 600
         if mouse_lock == index:
@@ -668,7 +680,7 @@ while running:
         elif card_anim_dict[card] <= 595:
             card_anim_dict[card] += 5
         y_cord = card_anim_dict[card]
-        # card poping up animation
+        # card pop up when taking from deck
         card_pop = True
         index_list = 10
         for index2 in range(len(animation_list)):
@@ -676,10 +688,10 @@ while running:
                 index_list = animation_list[index2][1]
         if not (index_list == 10 or index_list > index):
             card_pop = False
-        if card in table_at_deck or card in table_def_deck:
-            card_pop = False
+        # card pop up when taking from table
         if card in animated_def_cards or card in animated_at_cards:
             card_pop = True
+        # output
         if card_pop:
             screen.blit(textures['empty_card'], (x_cord, y_cord))
             screen.blit(textures[card[-2:]], (x_cord, y_cord))
@@ -908,39 +920,18 @@ while running:
     # menu
     screen.blit(textures['pause'], (1400, 15))
     if pause_mode or menu_mode:
-        background_color = (0, 55, 0)
+        # background
         screen.fill(background_color)
         screen.blit(textures['menu'], (415, 150))
+        # buttons
         for num, menu_button in [(-3, 'menu_up'), (-4, 'menu_down')]:
             if mouse_lock == num:
                 if card_pos_dict[menu_button] < 10:
                     card_pos_dict[menu_button] += 2
             elif card_pos_dict[menu_button] > 0:
                 card_pos_dict[menu_button] -= 1
-        # upper button
-        x_size = 420 + card_pos_dict['menu_up'] * 2
-        y_size = 100 + card_pos_dict['menu_up'] * 2
-        menu_up_dev_2 = int(card_pos_dict['menu_up'] / 2)
-        textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (x_size, y_size))
-        screen.blit(textures['menu_button'], (525 - card_pos_dict['menu_up'] , 320 - card_pos_dict['menu_up']))
-        font = pygame.font.Font("font/pixel_font.ttf", 40 + menu_up_dev_2)
-        if menu_mode:
-            text = font.render("  play  ", True, (0, 0, 0))
-        else:
-            text = font.render("continue", True, (0, 0, 0))
-        screen.blit(text, (570 - card_pos_dict['menu_up'], 350 - menu_up_dev_2))
-        # lower button
-        x_size = 420 + card_pos_dict['menu_down'] * 2
-        y_size = 100 + card_pos_dict['menu_down'] * 2
-        menu_down_dev_2 = int(card_pos_dict['menu_down'] / 2)
-        textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (x_size, y_size))
-        screen.blit(textures['menu_button'], (525 - card_pos_dict['menu_down'] , 445 - card_pos_dict['menu_down']))
-        font = pygame.font.Font("font/pixel_font.ttf", 40 + menu_down_dev_2)
-        if menu_mode:
-            text = font.render("  exit  ", True, (0, 0, 0))
-        else:
-            text = font.render("  menu  ", True, (0, 0, 0))
-        screen.blit(text, (570 - card_pos_dict['menu_down'], 475 - menu_down_dev_2))
+        screen.blit(*menu_button_anim('menu_up', "  play  ", "continue", 320))
+        screen.blit(*menu_button_anim('menu_down', "  exit  ", "  menu  ", 445))
 
     # if anyone wins
     win_check()
