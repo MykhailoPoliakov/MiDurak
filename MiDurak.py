@@ -1,5 +1,6 @@
 import pygame
 import random
+import sys, os
 
 # game part
 card_deck         = []    # card deck
@@ -8,6 +9,7 @@ player2_deck      = []    # bot deck
 table_at_deck     = []    # attack deck
 table_def_deck    = []    # defence deck
 trump_card        = ''    # trump card
+attack_player     = 0
 # taking cards from deck animation
 animation_list    = []    # list with cards to animate(fron deck to player)
 # throw card out animation
@@ -32,23 +34,20 @@ cards_been_beaten = False
 # menu
 pause_mode        = False
 menu_mode         = True
+# timer and win
+time_is_up        = False
+win_happened      = False
 
 # starting values
 all_addable_cards = []    # list of cards to add when attacking (only numbers)
-win_happened      = False
-attack_player     = 0
-card_anim_dict = {}
+card_anim_dict    = {}
 card_pos_dict = {
-    'm_size_x' : 95,
-    'm_size_y' : 55,
-    'm_cord_x' : 880,
-    'm_cord_y' : 470,
-    't_cord_x' : 800,
-    'p_y_cord' : 0,
-    'menu_up'  : 0,
-    'menu_down': 0,
+    'anim_but'  : 0,
+    'anim_trump': 0,
+    'p_y_cord'  : 0,
+    'menu_up'   : 0,
+    'menu_down' : 0,
 }
-card_pos_dict_copy = card_pos_dict.copy()
 bool_dict = {
     'throw_at_bool'  : True,
     'throw_def_bool' : True,
@@ -58,9 +57,14 @@ bool_dict = {
     'grab_def_bool'  : True,
     'anim_bool'      : True,
 }
+card_pos_dict_copy = card_pos_dict.copy()
 bool_dict_copy = bool_dict.copy()
 
-"""Game Functions"""
+"""Small Game Functions"""
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return relative_path
 
 def create_deck():
     """creating a deck of cards"""
@@ -72,6 +76,73 @@ def create_deck():
             card_deck.append(suit + cards)
     random.shuffle(card_deck)
     trump_card = card_deck[0]
+
+def free_to_move(win=False) -> bool:
+    if (not anim_def_table and not anim_at_table and not animation_list and not take_f_deck_queue and not anim_at_player
+        and not anim_at_player and not anim_def_player and not pause_mode and not menu_mode):
+        if win or not win_happened:
+            return True
+    return False
+
+def all_addable_cards_calc():
+    """calculating all addable cards"""
+    global all_addable_cards
+    all_addable_cards = []
+    for cards in table_at_deck:
+        all_addable_cards.append(cards[-2:])
+    for cards in table_def_deck:
+        all_addable_cards.append(cards[-2:])
+
+def first_beat() -> bool:
+    """checks if the first cards were beaten"""
+    if cards_been_beaten:
+        length = 5
+    else:
+        length = 4
+    if length >= len(table_at_deck) :
+        return True
+    else:
+        return False
+
+def op_deck(player_deck):
+    """returning the opposite deck"""
+    if player_deck == player1_deck:
+        return player2_deck
+    else:
+        return player1_deck
+
+"""Big Game Functions"""
+def who_moves_first():
+    """decides who moves first"""
+    def lowest_card(player_deck):
+        """finds the lowest trump card in a deck"""
+        lowest_player_card = 'x20'
+        for cards in player_deck:
+            if cards[0] == trump_card[0] and int(cards[-2:]) < int(lowest_player_card[-2:]):
+                lowest_player_card = cards
+        return lowest_player_card[-2:]
+    global attack_player
+    if lowest_card(card_deck[-6:]) < lowest_card(card_deck[-12:-6]):
+        attack_player = 1
+    else:
+        attack_player = 2
+
+def timer():
+    """timer for player, stops the game if needed"""
+    global time_is_up
+    if not hasattr(timer, 'time'):
+        timer.time = 2100
+        timer.old_at = table_at_deck
+        timer.old_def = table_def_deck
+    if not pause_mode:
+        timer.time -= 2
+    if timer.old_at != table_at_deck or timer.old_def != table_def_deck or win_happened or menu_mode:
+        timer.time = 2100
+    timer.old_at = table_at_deck.copy()
+    timer.old_def = table_def_deck.copy()
+    if timer.time <= 0:
+        time_is_up = True
+    return timer.time
 
 def take_from_deck(animation_active = True):
     """fill player deck with cards"""
@@ -100,61 +171,6 @@ def take_from_deck(animation_active = True):
                     player_take = False
             del take_f_deck_queue[0]
 
-def who_moves_first():
-    """decides who moves first"""
-    def lowest_card(player_deck):
-        """finds the lowest trump card in a deck"""
-        lowest_player_card = 'x20'
-        for cards in player_deck:
-            if cards[0] == trump_card[0] and int(cards[-2:]) < int(lowest_player_card[-2:]):
-                lowest_player_card = cards
-        return lowest_player_card[-2:]
-    global attack_player
-    if lowest_card(card_deck[-6:]) < lowest_card(card_deck[-12:-6]):
-        attack_player = 1
-    else:
-        attack_player = 2
-
-def timer(player_deck):
-    """timer for player, stops the game if needed"""
-    global card_deck, player1_deck, player2_deck
-    if not hasattr(timer, 'time'):
-        timer.time = 2100
-        timer.old_at = table_at_deck
-        timer.old_def = table_def_deck
-    if not pause_mode:
-        timer.time -= 1
-    if timer.old_at != table_at_deck or timer.old_def != table_def_deck or win_happened or menu_mode:
-        timer.time = 2100
-    timer.old_at  = table_at_deck.copy()
-    timer.old_def = table_def_deck.copy()
-    if timer.time <= 0:
-        card_deck = []
-        if player_deck == player1_deck:
-            player2_deck = []
-        else:
-            player1_deck = []
-    return timer.time
-
-def free_to_move() -> bool:
-    if (not anim_def_table and not anim_at_table and not animation_list and not take_f_deck_queue and not anim_at_player
-        and not anim_at_player and not anim_def_player and not pause_mode and not menu_mode and not win_happened):
-        return True
-    else:
-        return False
-
-def menu_button_anim(pos_dict, text_up, text_down, menu_y_cord):
-    menu_size = card_pos_dict[pos_dict] * 2
-    menu_dev_2 = int(card_pos_dict[pos_dict] / 2)
-    textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420 + menu_size, 100 + menu_size))
-    screen.blit(textures['menu_button'], (525 - card_pos_dict[pos_dict], menu_y_cord - card_pos_dict[pos_dict]))
-    menu_font = pygame.font.Font("font/pixel_font.ttf", 40 + menu_dev_2)
-    if menu_mode:
-        menu_text = menu_font.render(text_up, True, (0, 0, 0))
-    else:
-        menu_text = menu_font.render(text_down, True, (0, 0, 0))
-    return menu_text, (570 - card_pos_dict[pos_dict], menu_y_cord + 30 - menu_dev_2)
-
 def win_check():
     """check if player won and stop the game"""
     def end_screen(final_text):
@@ -166,25 +182,91 @@ def win_check():
         if time < 400:
             screen.fill((0, 55, 0))
             screen.blit(textures['win_panel'],(0,270))
-            end_font = pygame.font.Font("font/pixel_font.ttf", 70)
+            end_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 70)
             end_text = end_font.render(final_text, True, (0, 0, 0))
             screen.blit(end_text, (250 - x_add, 350))
-    global menu_mode, win_happened
+    global menu_mode, win_happened, time_is_up
     if not hasattr(win_check, 'time'):
         win_check.time = 500
-    if not card_deck and free_to_move():
+    if not card_deck and free_to_move(True):
         if not player1_deck:
             end_screen('   You Win!   ')
             win_happened = True
         if not player2_deck:
             end_screen('Opponent Wins!')
             win_happened = True
+    elif time_is_up:
+        end_screen(' Time Is Up!  ')
+        win_happened = True
     if win_happened:
         win_check.time -= 1
         if win_check.time <= 0:
+            time_is_up = False
             win_happened = False
             menu_mode = True
 
+def player_change_at(player_deck):
+    """if opponent defended himself, switching the player"""
+    global table_at_deck,table_def_deck,attack_player, cards_been_beaten, anim_at_throw, anim_def_throw
+    cards_been_beaten = True
+    anim_at_throw = table_at_deck.copy()
+    anim_def_throw = table_def_deck.copy()
+    # allowing card taking and changing the player
+    if player_deck == player1_deck:
+        take_f_deck_queue.append(1)
+        take_f_deck_queue.append(2)
+        attack_player = 2
+    else:
+        take_f_deck_queue.append(2)
+        take_f_deck_queue.append(1)
+        attack_player = 1
+
+def player_change_def(player_deck):
+    """if opponent didn't defend himself, not switching the player"""
+    global table_at_deck,table_def_deck,attack_player,able_to_grab,want_to_grab
+    # make player grab cards from table
+    want_to_grab = 1 if player_deck == player1_deck else 2
+    if able_to_grab:
+        for card_at in table_at_deck:
+            player_deck.append(card_at)
+            anim_at_player.append((card_at, table_at_deck.index(card_at), player_deck.index(card_at), want_to_grab))
+        for card_def in table_def_deck:
+            player_deck.append(card_def)
+            anim_def_player.append((card_def, table_def_deck.index(card_def), player_deck.index(card_def), want_to_grab))
+        # allowing taking cards
+        if player_deck == player1_deck:
+            take_f_deck_queue.append(2)
+        else:
+            take_f_deck_queue.append(1)
+        # cleaning the table
+        able_to_grab = False
+        want_to_grab = 0
+
+def attack_button(number,player_deck):
+    """Checking if attack card works"""
+    if table_at_deck == [] or player_deck[number][-2:] in all_addable_cards:
+        table_at_deck.append(player_deck[number])
+        anim_at_table.append(
+            (player_deck[number], attack_player, number, table_at_deck.index(player_deck[number])))
+        del player_deck[number]
+        return True
+    else:
+        return False
+
+def defence_button(number,player_deck):
+    """Checking if defence card works"""
+    if len(player_deck) > number:
+        if ((int(player1_deck[number][-2:]) > int(table_at_deck[-1][-2:]) and player1_deck[number][0] == table_at_deck[-1][0])
+        or (player1_deck[number][0] == trump_card[0] and table_at_deck[-1][0] != trump_card[0])):
+            table_def_deck.append(player_deck[number])
+            anim_def_table.append(
+                (player_deck[number], attack_player, number, table_def_deck.index(player_deck[number]))
+            )
+            del player_deck[number]
+            return True
+    return False
+
+"""Animation Functions"""
 def animation_calc(calc_bool,start_x, start_y, final_x, final_y, anim_name, list_to_del, blit = ('x20','','')):
     if bool_dict[calc_bool]:
         card_pos_dict[anim_name + "diff_x"] = (final_x - start_x) / 10
@@ -209,100 +291,19 @@ def animation_calc(calc_bool,start_x, start_y, final_x, final_y, anim_name, list
         del list_to_del[0]
     return card_pos_dict[anim_name + "active_x"], card_pos_dict[anim_name + "active_y"]
 
-def first_beat() -> bool:
-    """checks if the first cards were beaten"""
-    if cards_been_beaten:
-        length = 5
+def menu_button_anim(pos_dict, text_up, text_down, menu_y_cord):
+    menu_size = card_pos_dict[pos_dict] * 2
+    menu_dev_2 = int(card_pos_dict[pos_dict] / 2)
+    textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420 + menu_size, 100 + menu_size))
+    screen.blit(textures['menu_button'], (525 - card_pos_dict[pos_dict], menu_y_cord - card_pos_dict[pos_dict]))
+    menu_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40 + menu_dev_2)
+    if menu_mode:
+        menu_text = menu_font.render(text_up, True, (0, 0, 0))
     else:
-        length = 4
-    if length >= len(table_at_deck) :
-        return True
-    else:
-        return False
-
-def op_deck(player_deck):
-    """returning the opposite deck"""
-    if player_deck == player1_deck:
-        return player2_deck
-    else:
-        return player1_deck
-
-def player_change_at(player_deck):
-    """if opponent defended himself, switching the player"""
-    global table_at_deck,table_def_deck,attack_player, cards_been_beaten, anim_at_throw, anim_def_throw
-    cards_been_beaten = True
-    anim_at_throw = table_at_deck.copy()
-    anim_def_throw = table_def_deck.copy()
-    # allowing card taking and changing the player
-    if player_deck == player1_deck:
-        take_f_deck_queue.append(1)
-        take_f_deck_queue.append(2)
-        attack_player = 2
-    else:
-        take_f_deck_queue.append(2)
-        take_f_deck_queue.append(1)
-        attack_player = 1
-
-def player_change_def(player_deck):
-    """if opponent didn't defend himself, not switching the player"""
-    global table_at_deck,table_def_deck,attack_player,able_to_grab,want_to_grab
-    # make player grab cards from table
-    if player_deck == player1_deck:
-        want_to_grab = 1
-    else:
-        want_to_grab = 2
-    if able_to_grab:
-        for card_at in table_at_deck:
-            player_deck.append(card_at)
-            anim_at_player.append((card_at, table_at_deck.index(card_at), player_deck.index(card_at), want_to_grab))
-        for card_def in table_def_deck:
-            player_deck.append(card_def)
-            anim_def_player.append((card_def, table_def_deck.index(card_def), player_deck.index(card_def), want_to_grab))
-        # allowing taking cards
-        if player_deck == player1_deck:
-            take_f_deck_queue.append(2)
-        else:
-            take_f_deck_queue.append(1)
-        # cleaning the table
-        able_to_grab = False
-        want_to_grab = 0
-
-def attack_button(number,player_deck):
-    """Checking if attack card works"""
-    if table_at_deck == [] or player_deck[number][-2:] in all_addable_cards:
-        table_at_deck.append(player_deck[number])
-        anim_at_table.append(
-            (player_deck[number], attack_player, number, table_at_deck.index(player_deck[number]))
-        )
-        del player_deck[number]
-        return True
-    else:
-        return False
-
-def defence_button(number,player_deck):
-    """Checking if defence card works"""
-    if len(player_deck) > number:
-        if ((int(player1_deck[number][-2:]) > int(table_at_deck[-1][-2:]) and player1_deck[number][0] == table_at_deck[-1][0])
-        or (player1_deck[number][0] == trump_card[0] and table_at_deck[-1][0] != trump_card[0])):
-            table_def_deck.append(player_deck[number])
-            anim_def_table.append(
-                (player_deck[number], attack_player, number, table_def_deck.index(player_deck[number]))
-            )
-            del player_deck[number]
-            return True
-    return False
-
-def all_addable_cards_calc():
-    """calculating all addable cards"""
-    global all_addable_cards
-    all_addable_cards = []
-    for cards in table_at_deck:
-        all_addable_cards.append(cards[-2:])
-    for cards in table_def_deck:
-        all_addable_cards.append(cards[-2:])
+        menu_text = menu_font.render(text_down, True, (0, 0, 0))
+    return menu_text, (570 - card_pos_dict[pos_dict], menu_y_cord + 30 - menu_dev_2)
 
 """Bot Brain Functions"""
-
 def attack_calc(bot_move) -> str:
     """chooses the best attack card to play"""
     # choosing the card
@@ -356,15 +357,11 @@ def defence_calc(bot_move,player_deck) -> str:
 def bot_brain(player_deck):
     """makes a bot move"""
     global all_addable_cards,able_to_grab, want_to_grab
-    bot_move = []
-    if player_deck == player1_deck:
-        number = 1
-        op_num = 2
-    else:
-        number = 2
-        op_num = 1
     if not free_to_move():
         return
+    bot_move = []
+    number = 1 if player_deck == player1_deck else 2
+    op_num = 2 if player_deck == player1_deck else 1
     # bot attack moves
     if (attack_player == 1 and player_deck == player1_deck) or (attack_player == 2 and player_deck == player2_deck):
         if len(table_at_deck) == len(table_def_deck) or (want_to_grab == op_num):
@@ -384,8 +381,7 @@ def bot_brain(player_deck):
                 return
             table_at_deck.append(final_move)
             anim_at_table.append(
-                (final_move,attack_player,player_deck.index(final_move),table_at_deck.index(final_move))
-            )
+                (final_move,attack_player,player_deck.index(final_move),table_at_deck.index(final_move)))
             player_deck.remove(final_move)
             return
         return
@@ -411,6 +407,7 @@ def bot_brain(player_deck):
     return
 
 def game_init():
+    """starting the game"""
     global card_deck, player1_deck, player2_deck, table_at_deck, table_def_deck, animation_list, card_pos_dict
     global anim_at_throw,anim_def_throw,grab_it,want_to_grab,take_f_deck_queue, card_anim_dict,bool_dict
     global able_to_grab,anim_at_player, animated_at_cards,anim_def_player,animated_def_cards
@@ -464,32 +461,32 @@ background_color = (0, 55, 0)
 
 # textures
 textures = {
-    '15'          : pygame.image.load("textures/15.png").convert_alpha(),
-    '14'          : pygame.image.load("textures/14.png").convert_alpha(),
-    '13'          : pygame.image.load("textures/13.png").convert_alpha(),
-    '12'          : pygame.image.load("textures/12.png").convert_alpha(),
-    '10'          : pygame.image.load("textures/10.png").convert_alpha(),
-    '09'          : pygame.image.load("textures/09.png").convert_alpha(),
-    '08'          : pygame.image.load("textures/08.png").convert_alpha(),
-    '07'          : pygame.image.load("textures/07.png").convert_alpha(),
-    '06'          : pygame.image.load("textures/06.png").convert_alpha(),
-    'h'           : pygame.image.load("textures/h.png").convert_alpha(),
-    'd'           : pygame.image.load("textures/d.png").convert_alpha(),
-    's'           : pygame.image.load("textures/s.png").convert_alpha(),
-    'c'           : pygame.image.load("textures/c.png").convert_alpha(),
-    'table'       : pygame.image.load("textures/table.png").convert_alpha(),
-    'button'      : pygame.image.load("textures/button.png").convert_alpha(),
-    'empty_card'  : pygame.image.load("textures/empty_card.png").convert_alpha(),
-    'face_down'   : pygame.image.load("textures/face_down.png").convert_alpha(),
-    'deck_side'   : pygame.image.load("textures/deck_side.png").convert_alpha(),
-    'trump_empty' : pygame.image.load("textures/empty_card.png").convert_alpha(),
-    'trump_num'   : pygame.image.load(f"textures/{trump_card[-2:]}.png").convert_alpha(),
-    'trump_suit'  : pygame.image.load(f"textures/{trump_card[0]}.png").convert_alpha(),
-    'loading'     : pygame.image.load("textures/loading.png").convert_alpha(),
-    'menu'        : pygame.image.load("textures/menu.png").convert_alpha(),
-    'menu_button' : pygame.image.load("textures/menu_button.png").convert_alpha(),
-    'pause'       : pygame.image.load("textures/pause.png").convert_alpha(),
-    'win_panel'   : pygame.image.load("textures/win_panel.png").convert_alpha(),
+    '15'          : pygame.image.load(resource_path("textures/15.png")).convert_alpha(),
+    '14'          : pygame.image.load(resource_path("textures/14.png")).convert_alpha(),
+    '13'          : pygame.image.load(resource_path("textures/13.png")).convert_alpha(),
+    '12'          : pygame.image.load(resource_path("textures/12.png")).convert_alpha(),
+    '10'          : pygame.image.load(resource_path("textures/10.png")).convert_alpha(),
+    '09'          : pygame.image.load(resource_path("textures/09.png")).convert_alpha(),
+    '08'          : pygame.image.load(resource_path("textures/08.png")).convert_alpha(),
+    '07'          : pygame.image.load(resource_path("textures/07.png")).convert_alpha(),
+    '06'          : pygame.image.load(resource_path("textures/06.png")).convert_alpha(),
+    'h'           : pygame.image.load(resource_path("textures/h.png")).convert_alpha(),
+    'd'           : pygame.image.load(resource_path("textures/d.png")).convert_alpha(),
+    's'           : pygame.image.load(resource_path("textures/s.png")).convert_alpha(),
+    'c'           : pygame.image.load(resource_path("textures/c.png")).convert_alpha(),
+    'table'       : pygame.image.load(resource_path("textures/table.png")).convert_alpha(),
+    'button'      : pygame.image.load(resource_path("textures/button.png")).convert_alpha(),
+    'empty_card'  : pygame.image.load(resource_path("textures/empty_card.png")).convert_alpha(),
+    'face_down'   : pygame.image.load(resource_path("textures/face_down.png")).convert_alpha(),
+    'deck_side'   : pygame.image.load(resource_path("textures/deck_side.png")).convert_alpha(),
+    'trump_empty' : pygame.image.load(resource_path("textures/empty_card.png")).convert_alpha(),
+    'trump_num'   : pygame.image.load(resource_path(f"textures/{trump_card[-2:]}.png")).convert_alpha(),
+    'trump_suit'  : pygame.image.load(resource_path(f"textures/{trump_card[0]}.png")).convert_alpha(),
+    'loading'     : pygame.image.load(resource_path("textures/loading.png")).convert_alpha(),
+    'menu'        : pygame.image.load(resource_path("textures/menu.png")).convert_alpha(),
+    'menu_button' : pygame.image.load(resource_path("textures/menu_button.png")).convert_alpha(),
+    'pause'       : pygame.image.load(resource_path("textures/pause.png")).convert_alpha(),
+    'win_panel'   : pygame.image.load(resource_path("textures/win_panel.png")).convert_alpha(),
 }
 # resizing
 for texture in textures.keys():
@@ -527,8 +524,6 @@ all_buttons = [button_1, button_2, button_3, button_4,button_5,button_6,
 # main cycle
 running = True
 while running:
-    # timer
-    timer(player1_deck)
     # take from the deck
     take_from_deck()
     # bot making a move
@@ -603,64 +598,49 @@ while running:
 
     # button to change player and it's animation
     if mouse_lock == -1:
-        if card_pos_dict['m_size_x'] < 104:
-            card_pos_dict['m_size_x'] += 2
-            card_pos_dict['m_size_y'] += 2
-            card_pos_dict['m_cord_x'] -= 1
-            card_pos_dict['m_cord_y'] -= 1
-    elif 96 < card_pos_dict['m_size_x']:
-        card_pos_dict['m_size_x'] -= 2
-        card_pos_dict['m_size_y'] -= 2
-        card_pos_dict['m_cord_x'] += 1
-        card_pos_dict['m_cord_y'] += 1
-    x_size = card_pos_dict['m_size_x']
-    y_size = card_pos_dict['m_size_y']
-    x_cord = card_pos_dict['m_cord_x']
-    y_cord = card_pos_dict['m_cord_y']
-    textures['button'] = pygame.transform.scale(textures['button'], (x_size, y_size))
-    screen.blit(textures['button'], (x_cord, y_cord))
+        if card_pos_dict['anim_but'] < 5:
+            card_pos_dict['anim_but'] += 1
+    elif 0 < card_pos_dict['anim_but']:
+        card_pos_dict['anim_but'] -= 1
+    anim_but = card_pos_dict['anim_but']
+    textures['button'] = pygame.transform.scale(textures['button'], (95 + anim_but * 2, 55 + anim_but * 2))
+    screen.blit(textures['button'], (880 + anim_but * -1, 470 + anim_but * -1))
 
     # deck output
     if card_deck != []:
         # trump card animation
         if mouse_lock == -2:
-            if 770 < card_pos_dict['t_cord_x']:
-                card_pos_dict['t_cord_x'] -= 4
-        elif card_pos_dict['t_cord_x'] < 800:
-            card_pos_dict['t_cord_x'] += 4
-        x_cord = card_pos_dict['t_cord_x']
-        y_cord = 340
-        screen.blit(textures['trump_empty'], (x_cord, y_cord))
-        screen.blit(textures['trump_suit'], (x_cord, y_cord))
-        screen.blit(textures['trump_num'], (x_cord, y_cord))
+            if 30 > card_pos_dict['anim_trump']:
+                card_pos_dict['anim_trump'] += 4
+        elif card_pos_dict['anim_trump'] > 0:
+            card_pos_dict['anim_trump'] -= 4
+        screen.blit(textures['trump_empty'], (800 - card_pos_dict['anim_trump'], 340))
+        screen.blit(textures['trump_suit'], (800 - card_pos_dict['anim_trump'], 340))
+        screen.blit(textures['trump_num'], (800 - card_pos_dict['anim_trump'], 340))
         # deck output
         if len(card_deck) > 1:
             screen.blit(textures['face_down'], (890, 320))
             screen.blit(textures['deck_side'], (875, 320))
-            font = pygame.font.Font("font/pixel_font.ttf", 40)
-            text = font.render(str(len(card_deck)), True, (0, 0, 0))
             pygame.draw.rect(screen, (255, 255, 255), (890, 365, 95, 45))
+            font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
+            text = font.render(str(len(card_deck)), True, (0, 0, 0))
             screen.blit(text, (900, 370))
     else:
         screen.blit(textures['trump_suit'], (800, 340))
 
     # timer output
-    x_length = timer(player1_deck) / 6
-    if x_length > 100:
+    x_length = timer() / 6
+    if x_length > 115:
         red_color = 100
-    else:
-        if red_color < 255:
-            red_color += 5
-        else:
-            red_color = 255
+    elif red_color < 255:
+        red_color += 5
     pygame.draw.rect(screen, (0, 0, 0), (1100, 360, 300, 55))
     pygame.draw.rect(screen, (red_color, 0, 0), (1100, 360, x_length, 55))
     pygame.draw.rect(screen, background_color, (1400, 360, 55, 55))
     screen.blit(textures['loading'], (1100, 350))
 
-    # bot cards output
+    # opponent cards output
     for index, card in enumerate(player2_deck):
-        # card pop up when taking from deck
         card_pop = True
         index_list = 10
         for index2 in range(len(animation_list)):
@@ -670,18 +650,12 @@ while running:
             card_pop = False
         if card in table_at_deck or card in table_def_deck:
             card_pop = False
-        # card pop up when taking from table
         if card in animated_def_cards or card in animated_at_cards:
             card_pop = True
         # output
         if card_pop:
             screen.blit(textures['face_down'], (15 + 105 * index, 60))
             # to see bot cards
-            '''
-            screen.blit(textures['empty_card'], (x_cord, 60))
-            screen.blit(textures[card[-2:]], (x_cord, 60))
-            screen.blit(textures[card[0]], (x_cord, 60))
-            '''
 
     # player cards output
     for card in card_anim_dict.copy():
@@ -698,7 +672,7 @@ while running:
         elif card_anim_dict[card] <= 595:
             card_anim_dict[card] += 5
         y_cord = card_anim_dict[card]
-        # card pop up when taking from deck
+        # if card pop up
         card_pop = True
         index_list = 10
         for index2 in range(len(animation_list)):
@@ -708,7 +682,6 @@ while running:
             card_pop = False
         if card in table_at_deck or card in table_def_deck:
             card_pop = False
-        # card pop up when taking from table
         if card in animated_def_cards or card in animated_at_cards:
             card_pop = True
         # output
