@@ -140,9 +140,9 @@ def timer():
         timer.time = 2100
         timer.old_at = table_at_deck
         timer.old_def = table_def_deck
-    if not pause_mode:
+    if not pause_mode and free_to_move():
         timer.time -= 1
-    if timer.old_at != table_at_deck or timer.old_def != table_def_deck or win_happened or menu_mode:
+    if timer.old_at != table_at_deck or timer.old_def != table_def_deck or menu_mode:
         timer.time = 2100
     timer.old_at = table_at_deck.copy()
     timer.old_def = table_def_deck.copy()
@@ -186,7 +186,7 @@ def win_check():
         if 300 < time < 400:
             x_add = (time - 300) * 8
         if time < 400:
-            screen.fill((0, 55, 0))
+            screen.blit(textures['back_pattern'],(0,0))
             screen.blit(textures['win_panel'],(0,270))
             end_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 70)
             end_text = end_font.render(final_text, True, (0, 0, 0))
@@ -308,6 +308,16 @@ def menu_button_anim(pos_dict, text_up, text_down, menu_y_cord):
     else:
         menu_text = menu_font.render(text_down, True, (0, 0, 0))
     return menu_text, (570 - card_pos_dict[pos_dict], menu_y_cord + 30 - menu_dev_2)
+
+def take_button_anim() -> str:
+    if attack_player == 1 and free_to_move():
+        if len(table_at_deck) == len(table_def_deck) >= 1:
+            return "Done"
+        elif len(table_at_deck) > len(table_def_deck) and want_to_grab:
+            return "Done"
+    elif attack_player == 2 and len(table_at_deck) > len(table_def_deck) and free_to_move():
+        return "Take"
+    return ""
 
 """Bot Brain Functions"""
 def attack_calc(bot_move) -> str:
@@ -464,6 +474,7 @@ screen = pygame.display.set_mode((1500, 800))
 screen = pygame.display.set_mode((1500, 800), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
 background_color = (0, 55, 0)
+screen.fill(background_color)
 
 # textures
 textures = {
@@ -491,6 +502,10 @@ textures = {
     'c'           : pygame.image.load(resource_path("textures/c.png")).convert_alpha(),
     'table'       : pygame.image.load(resource_path("textures/table.png")).convert_alpha(),
     'button'      : pygame.image.load(resource_path("textures/button.png")).convert_alpha(),
+    'button_up'   : pygame.image.load(resource_path("textures/button_up.png")).convert_alpha(),
+    'button_down' : pygame.image.load(resource_path("textures/button_down.png")).convert_alpha(),
+    'button_active': pygame.image.load(resource_path("textures/button_active.png")).convert_alpha(),
+    'button_passive': pygame.image.load(resource_path("textures/button_passive.png")).convert_alpha(),
     'empty_card'  : pygame.image.load(resource_path("textures/empty_card.png")).convert_alpha(),
     'beaten_card' : pygame.image.load(resource_path("textures/beaten_card.png")).convert_alpha(),
     'face_down'   : pygame.image.load(resource_path("textures/face_down.png")).convert_alpha(),
@@ -503,25 +518,24 @@ textures = {
     'menu_button' : pygame.image.load(resource_path("textures/menu_button.png")).convert_alpha(),
     'pause'       : pygame.image.load(resource_path("textures/pause.png")).convert_alpha(),
     'win_panel'   : pygame.image.load(resource_path("textures/win_panel.png")).convert_alpha(),
+    'back_pattern': pygame.image.load(resource_path("textures/back_pattern.png")).convert_alpha(),
 }
 # resizing
 for texture in textures.keys():
-    if texture not in ['button','table','loading','menu','menu_button','win_panel']:
+    if texture not in ['table','loading','menu','menu_button','win_panel','button_up','button_down','back_pattern','pause']:
         textures[texture] = pygame.transform.scale(textures[texture], (120, 175))
 textures['trump_empty'] = pygame.transform.rotate(textures['trump_empty'], 90)
-textures['button'] = pygame.transform.scale(textures['button'], (95, 55))
-textures['table'] = pygame.transform.scale(textures['table'], (1300, 325))
-textures['loading'] = pygame.transform.scale(textures['loading'], (300, 75))
+textures['table'] = pygame.transform.scale(textures['table'], (1325, 340))
+textures['loading'] = pygame.transform.scale(textures['loading'], (75, 320))
 textures['menu'] = pygame.transform.scale(textures['menu'], (640, 450))
-textures['pause'] = pygame.transform.scale(textures['pause'], (80, 80))
 textures['win_panel'] = pygame.transform.scale(textures['win_panel'], (1500, 240))
 
 # all buttons (start x start y length x length y)
 button_P = pygame.Rect(1400, 15, 80, 80)
 button_U = pygame.Rect(525, 320, 420, 100)
 button_D = pygame.Rect(525, 445, 420, 100)
-button_T = pygame.Rect(1030, 312, 175, 120)
-button_0 = pygame.Rect(890, 470, 95, 55)
+button_T = pygame.Rect(1030, 292, 175, 120)
+button_0 = pygame.Rect(1025, 460, 230, 70)
 all_buttons = {}
 for index in range(36):
     all_buttons["button_" + str(index + 1)] = None
@@ -543,7 +557,7 @@ while running:
         elif grab_it == 2:
             y_add = -100
         all_table_buttons["button_" + str(index + 1)] = pygame.Rect(
-            40 + 145 * index, 330 + y_add if index % 2 == 0 else 300 + y_add, 150, 215)
+            40 + 145 * index, 300 + y_add if index % 2 == 0 else 270 + y_add, 150, 215)
     # take from the deck
     take_from_deck()
     # bot making a move
@@ -618,7 +632,7 @@ while running:
 
     """ OUTPUT """
     # background
-    screen.fill(background_color)
+    screen.blit(textures['back_pattern'], (0, 0))
     screen.blit(textures['table'], (5, 235))
 
     # button to change player and it's animation
@@ -628,8 +642,20 @@ while running:
     elif 0 < card_pos_dict['anim_but']:
         card_pos_dict['anim_but'] -= 1
     anim_but = card_pos_dict['anim_but']
-    textures['button'] = pygame.transform.scale(textures['button'], (95 + anim_but * 2, 55 + anim_but * 2))
-    screen.blit(textures['button'], (880 + anim_but * -1, 470 + anim_but * -1))
+    textures['button_up'] = pygame.transform.scale(textures['button_up'], (240 , 80 ))
+    textures['button_down'] = pygame.transform.scale(textures['button_down'], (240 , 80 ))
+    screen.blit(textures['button_up'], (1020, 455))
+    move = take_button_anim()
+    if move:
+        textures['button_active'] = pygame.transform.scale(textures['button_active'],(240, 80))
+        screen.blit(textures['button_active'], (1020, 455 + anim_but * 2))
+        font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
+        text = font.render(move, True, (100, 0, 0))
+        screen.blit(text, (1057, 470 + anim_but * 2))
+    else:
+        textures['button_passive'] = pygame.transform.scale(textures['button_passive'],(240, 80))
+        screen.blit(textures['button_passive'], (1020, 455))
+    screen.blit(textures['button_down'], (1020, 455))
 
     # deck output
     if card_deck != []:
@@ -639,30 +665,29 @@ while running:
                 card_pos_dict['anim_trump'] += 4
         elif card_pos_dict['anim_trump'] > 0:
             card_pos_dict['anim_trump'] -= 4
-        screen.blit(textures['trump_empty'], (1030 - card_pos_dict['anim_trump'], 312))
-        screen.blit(textures['trump_suit'], (1030 - card_pos_dict['anim_trump'], 312))
-        screen.blit(textures['trump_num'], (1030 - card_pos_dict['anim_trump'], 312))
+        screen.blit(textures['trump_empty'], (1030 - card_pos_dict['anim_trump'], 292))
+        screen.blit(textures['trump_suit'], (1030 - card_pos_dict['anim_trump'], 292))
+        screen.blit(textures['trump_num'], (1030 - card_pos_dict['anim_trump'], 292))
         # deck output
         if len(card_deck) > 1:
-            screen.blit(textures['deck_side'], (1125, 285))
-            screen.blit(textures['face_down'], (1140, 285))
-            pygame.draw.rect(screen, (255, 255, 255), (1140, 355, 120, 45))
+            screen.blit(textures['deck_side'], (1125, 265))
+            screen.blit(textures['face_down'], (1140, 265))
+            pygame.draw.rect(screen, (255, 255, 255), (1140, 330, 120, 45))
             font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
             text = font.render(str(len(card_deck)), True, (0, 0, 0))
-            screen.blit(text, (1163, 360))
+            screen.blit(text, (1163, 335))
     else:
         screen.blit(textures['trump_suit'], (800, 340))
 
     # timer output
-    x_length = timer() / 6
-    if x_length > 115:
-        red_color = 100
-    elif red_color < 255:
-        red_color += 5
-    pygame.draw.rect(screen, (0, 0, 0), (1100, 560, 300, 55))
-    pygame.draw.rect(screen, (red_color, 0, 0), (1100, 560, x_length, 55))
-    pygame.draw.rect(screen, background_color, (1400, 560, 55, 55))
-    screen.blit(textures['loading'], (1100, 550))
+    y_length = int(timer() / 7)
+    if y_length > 115:
+        add_color = 80
+    elif add_color > 0:
+        add_color -= 5
+    pygame.draw.rect(screen, (0, 0, 0), (1385, 265, 55, 275))
+    pygame.draw.rect(screen, (255, 128 + int(add_color/2) ,add_color), (1385, 560 - y_length, 55, y_length))
+    screen.blit(textures['loading'], (1375, 240))
 
     # opponent cards output
     for index, card in enumerate(player2_deck):
@@ -749,10 +774,10 @@ while running:
             card_anim_dict[str(51 + index)] = 0
         anim_add = card_anim_dict[str(51 + index)]
         x_cord = 40 + 145 * index - anim_add
-        y_cord = 330 + y_add - anim_add if index % 2 == 0 else 300 + y_add - anim_add
+        y_cord = 300 + y_add - anim_add if index % 2 == 0 else 270 + y_add - anim_add
         # throwing card off animation
         if anim_at_throw and card == anim_at_throw[0]:
-            x_cord, y_cord = animation_calc('throw_at_bool', x_cord, y_cord, -200, 330,
+            x_cord, y_cord = animation_calc('throw_at_bool', x_cord, y_cord, -200, 305,
                 'throw_at', anim_at_throw, (card, 'remember_at_card'))
         # grabbing cards from table animation
         elif anim_at_player and anim_at_player[0][0] == card:
@@ -778,10 +803,10 @@ while running:
             continue
         anim_add = card_anim_dict[str(51 + index)]
         x_cord = 70 + 145 * index + anim_add
-        y_cord = 370 + y_add + anim_add if index % 2 == 0 else 340 + y_add + anim_add
+        y_cord = 340 + y_add + anim_add if index % 2 == 0 else 310 + y_add + anim_add
         # throwing card off animation
         if anim_def_throw and card == anim_def_throw[0]:
-            x_cord, y_cord = animation_calc('throw_def_bool', x_cord, y_cord, -200, 330,
+            x_cord, y_cord = animation_calc('throw_def_bool', x_cord, y_cord, -200, 305,
                 'throw_def', anim_def_throw, (card, 'remember_def_card'))
         # grabbing cards from table animation
         elif anim_def_player and anim_def_player[0][0] == card:
@@ -809,10 +834,10 @@ while running:
             'deck', animation_list, (card,'take_from_deck'))
 
     # menu
-    screen.blit(textures['pause'], (1400, 15))
+    screen.blit(textures['pause'], (1365, 15))
     if pause_mode or menu_mode:
         # background
-        screen.fill(background_color)
+        screen.blit(textures['back_pattern'], (0, 0))
         screen.blit(textures['menu'], (415, 150))
         # buttons
         for num, menu_button in [(-3, 'menu_up'), (-4, 'menu_down')]:
