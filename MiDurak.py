@@ -1,6 +1,7 @@
 import pygame
 import random
 import sys, os
+import json
 
 # game part
 card_deck         = []    # card deck
@@ -34,6 +35,7 @@ cards_been_beaten = False
 # menu
 pause_mode        = False
 menu_mode         = True
+stat_mode         = False
 # timer and win
 time_is_up        = False
 win_happened      = False
@@ -52,6 +54,7 @@ card_pos_dict = {
     'anim_trump': 0,
     'p_y_cord'  : 0,
     'menu_up'   : 0,
+    'menu_mid'  : 0,
     'menu_down' : 0,
 }
 bool_dict = {
@@ -65,6 +68,16 @@ bool_dict = {
 }
 card_pos_dict_copy = card_pos_dict.copy()
 bool_dict_copy = bool_dict.copy()
+# checking player statistic
+file_name = "user_data.json"
+if os.path.exists(file_name):
+    with open(file_name,"r",encoding="utf-8") as json_file:
+        user_data = json.load(json_file)
+else:
+    user_data = {
+        'user_games': 0,
+        'user_wins': 0
+    }
 
 """Small Game Functions"""
 def resource_path(relative_path):
@@ -85,7 +98,7 @@ def create_deck():
 
 def free_to_move(win=False) -> bool:
     if (not anim_def_table and not anim_at_table and not animation_list and not take_f_deck_queue and not anim_at_player
-        and not anim_at_player and not anim_def_player and not pause_mode and not menu_mode):
+        and not anim_at_player and not anim_def_player and not pause_mode and not menu_mode and not stat_mode):
         if win or not win_happened:
             return True
     return False
@@ -197,6 +210,10 @@ def win_check():
     if not card_deck and free_to_move(True):
         if not player1_deck:
             end_screen('   You Win!   ')
+            if not win_happened:
+                user_data['user_wins'] += 1
+                with open(file_name, "w", encoding="utf-8") as json_file_f:
+                    json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
             win_happened = True
         if not player2_deck:
             end_screen('Opponent Wins!')
@@ -297,16 +314,18 @@ def animation_calc(calc_bool,start_x, start_y, final_x, final_y, anim_name, list
         del list_to_del[0]
     return card_pos_dict[anim_name + "active_x"], card_pos_dict[anim_name + "active_y"]
 
-def menu_button_anim(pos_dict, text_up, text_down, menu_y_cord):
+def menu_button_anim(pos_dict, text_menu, text_pause, text_stat, menu_y_cord):
     menu_size = card_pos_dict[pos_dict] * 2
     menu_dev_2 = int(card_pos_dict[pos_dict] / 2)
     textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420 + menu_size, 100 + menu_size))
     screen.blit(textures['menu_button'], (525 - card_pos_dict[pos_dict], menu_y_cord - card_pos_dict[pos_dict]))
     menu_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40 + menu_dev_2)
     if menu_mode:
-        menu_text = menu_font.render(text_up, True, (0, 0, 0))
+        menu_text = menu_font.render(text_menu, True, (0, 0, 0))
+    elif stat_mode:
+        menu_text = menu_font.render(text_stat, True, (0, 0, 0))
     else:
-        menu_text = menu_font.render(text_down, True, (0, 0, 0))
+        menu_text = menu_font.render(text_pause, True, (0, 0, 0))
     return menu_text, (570 - card_pos_dict[pos_dict], menu_y_cord + 30 - menu_dev_2)
 
 def take_button_anim() -> str:
@@ -464,6 +483,10 @@ def game_init():
     textures['trump_suit'] = pygame.transform.scale(textures['trump_suit'], (120, 175))
     textures['trump_num'] = pygame.transform.rotate(textures['trump_num'], 90)
     textures['trump_suit'] = pygame.transform.rotate(textures['trump_suit'], 90)
+    # player started the game
+    user_data['user_games'] += 1
+    with open(file_name, "w", encoding="utf-8") as json_file_f:
+        json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
 
 # creating fake deck
 create_deck()
@@ -501,7 +524,6 @@ textures = {
     's'           : pygame.image.load(resource_path("textures/s.png")).convert_alpha(),
     'c'           : pygame.image.load(resource_path("textures/c.png")).convert_alpha(),
     'table'       : pygame.image.load(resource_path("textures/table.png")).convert_alpha(),
-    'button'      : pygame.image.load(resource_path("textures/button.png")).convert_alpha(),
     'button_up'   : pygame.image.load(resource_path("textures/button_up.png")).convert_alpha(),
     'button_down' : pygame.image.load(resource_path("textures/button_down.png")).convert_alpha(),
     'button_active': pygame.image.load(resource_path("textures/button_active.png")).convert_alpha(),
@@ -522,18 +544,20 @@ textures = {
 }
 # resizing
 for texture in textures.keys():
-    if texture not in ['table','loading','menu','menu_button','win_panel','button_up','button_down','back_pattern','pause']:
+    if ((len(texture) == 3 and int(texture[:2]) in range(6,16)) or
+    texture in ['h','d','s','c','empty_card','beaten_card','face_down','trump_empty','deck_side']):
         textures[texture] = pygame.transform.scale(textures[texture], (120, 175))
 textures['trump_empty'] = pygame.transform.rotate(textures['trump_empty'], 90)
 textures['table'] = pygame.transform.scale(textures['table'], (1325, 340))
-textures['loading'] = pygame.transform.scale(textures['loading'], (75, 320))
 textures['menu'] = pygame.transform.scale(textures['menu'], (640, 450))
 textures['win_panel'] = pygame.transform.scale(textures['win_panel'], (1500, 240))
 
 # all buttons (start x start y length x length y)
 button_P = pygame.Rect(1400, 15, 80, 80)
 button_U = pygame.Rect(525, 320, 420, 100)
-button_D = pygame.Rect(525, 445, 420, 100)
+button_M = pygame.Rect(525, 445, 420, 100)
+button_D = pygame.Rect(525, 570, 420, 100)
+button_R = pygame.Rect(0, 0, 80, 80)
 button_T = pygame.Rect(1030, 292, 175, 120)
 button_0 = pygame.Rect(1025, 460, 230, 70)
 all_buttons = {}
@@ -570,9 +594,11 @@ while running:
     mouse_lock = None
     if button_U.collidepoint(mouse_pos):
         mouse_lock = -3
-    elif button_D.collidepoint(mouse_pos):
+    elif button_M.collidepoint(mouse_pos):
         mouse_lock = -4
-    if not menu_mode and not pause_mode:
+    elif button_D.collidepoint(mouse_pos):
+        mouse_lock = -5
+    if not menu_mode and not pause_mode and not stat_mode:
         if button_0.collidepoint(mouse_pos):
             mouse_lock = -1
         elif button_T.collidepoint(mouse_pos):
@@ -595,20 +621,35 @@ while running:
             running = False
         # menu input
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if button_P.collidepoint(mouse_pos) and not menu_mode:
-                pause_mode = True
             if menu_mode:
                 if button_U.collidepoint(mouse_pos):
                     menu_mode = False
                     game_init()
-                elif button_D.collidepoint(mouse_pos):
+                elif button_M.collidepoint(mouse_pos):
                     running = False
+                elif button_D.collidepoint(mouse_pos):
+                    menu_mode = False
+                    stat_mode = True
+            elif stat_mode:
+                if button_R.collidepoint(mouse_pos):
+                    user_data = {'user_games': 0, 'user_wins': 0}
+                    with open(file_name, "w", encoding="utf-8") as json_file_f:
+                        json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
+                if button_D.collidepoint(mouse_pos):
+                    menu_mode = True
+                    stat_mode = False
             elif pause_mode:
                 if button_U.collidepoint(mouse_pos):
                     pause_mode = False
-                elif button_D.collidepoint(mouse_pos):
+                elif button_M.collidepoint(mouse_pos):
                     pause_mode = False
                     menu_mode = True
+                elif button_D.collidepoint(mouse_pos):
+                    menu_mode = False
+                    stat_mode = True
+            else:
+                if button_P.collidepoint(mouse_pos) and not menu_mode:
+                    pause_mode = True
         # attack input
         if event.type == pygame.MOUSEBUTTONDOWN and attack_player == 1 and free_to_move():
             if button_0.collidepoint(event.pos) and len(table_at_deck) == len(table_def_deck) >= 1:
@@ -676,6 +717,7 @@ while running:
             font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
             text = font.render(str(len(card_deck)), True, (0, 0, 0))
             screen.blit(text, (1163, 335))
+
     else:
         screen.blit(textures['trump_suit'], (800, 340))
 
@@ -835,19 +877,31 @@ while running:
 
     # menu
     screen.blit(textures['pause'], (1365, 15))
-    if pause_mode or menu_mode:
+    if pause_mode or menu_mode or stat_mode:
         # background
         screen.blit(textures['back_pattern'], (0, 0))
         screen.blit(textures['menu'], (415, 150))
         # buttons
-        for num, menu_button in [(-3, 'menu_up'), (-4, 'menu_down')]:
+        for num, menu_button in [(-3, 'menu_up'), (-4, 'menu_mid'), (-5, 'menu_down')]:
             if mouse_lock == num:
                 if card_pos_dict[menu_button] < 10:
                     card_pos_dict[menu_button] += 2
             elif card_pos_dict[menu_button] > 0:
                 card_pos_dict[menu_button] -= 1
-        screen.blit(*menu_button_anim('menu_up', "  play  ", "continue", 320))
-        screen.blit(*menu_button_anim('menu_down', "  exit  ", "  menu  ", 445))
+        if menu_mode:
+            screen.blit(*menu_button_anim('menu_up', "  play  ", "continue","", 320))
+            screen.blit(*menu_button_anim('menu_mid', "  exit  ", "  menu  ","", 445))
+            screen.blit(*menu_button_anim('menu_down',"  info  ", "", " return ", 570))
+        elif pause_mode:
+            screen.blit(*menu_button_anim('menu_up', "  play  ", "continue", "", 320))
+            screen.blit(*menu_button_anim('menu_mid', "  exit  ", "  menu  ", "", 445))
+        else:
+            font = pygame.font.Font(resource_path("font/sans.ttf"), 30)
+            text = font.render(f"Games played : {user_data['user_games']}", True, (0, 0, 0))
+            screen.blit(text, (450, 320))
+            text = font.render(f"Games won    : {user_data['user_wins']}", True, (0, 0, 0))
+            screen.blit(text, (450, 370))
+            screen.blit(*menu_button_anim('menu_down', "", "", " return ", 570))
 
     # if anyone wins
     win_check()
