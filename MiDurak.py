@@ -212,8 +212,8 @@ def win_check():
             end_screen('   You Win!   ')
             if not win_happened:
                 user_data['user_wins'] += 1
-                with open(file_name, "w", encoding="utf-8") as json_file_f:
-                    json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
+                with open(file_name, "w", encoding="utf-8") as _json_file:
+                    json.dump(user_data, _json_file, ensure_ascii=False, indent=4, sort_keys=True)
             win_happened = True
         if not player2_deck:
             end_screen('Opponent Wins!')
@@ -317,7 +317,10 @@ def animation_calc(calc_bool,start_x, start_y, final_x, final_y, anim_name, list
 def menu_button_anim(pos_dict, text_menu, text_pause, text_stat, menu_y_cord):
     menu_size = card_pos_dict[pos_dict] * 2
     menu_dev_2 = int(card_pos_dict[pos_dict] / 2)
-    textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420 + menu_size, 100 + menu_size))
+    if card_pos_dict[pos_dict] > 0:
+        textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420 + menu_size, 100 + menu_size))
+    else:
+        textures['menu_button'] = pygame.transform.scale(textures['menu_button'], (420, 100))
     screen.blit(textures['menu_button'], (525 - card_pos_dict[pos_dict], menu_y_cord - card_pos_dict[pos_dict]))
     menu_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40 + menu_dev_2)
     if menu_mode:
@@ -441,6 +444,7 @@ def bot_brain(player_deck):
                 return
     return
 
+"""Game Restart"""
 def game_init():
     """starting the game"""
     global card_deck, player1_deck, player2_deck, table_at_deck, table_def_deck, animation_list, card_pos_dict
@@ -485,8 +489,8 @@ def game_init():
     textures['trump_suit'] = pygame.transform.rotate(textures['trump_suit'], 90)
     # player started the game
     user_data['user_games'] += 1
-    with open(file_name, "w", encoding="utf-8") as json_file_f:
-        json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
+    with open(file_name, "w", encoding="utf-8") as _json_file:
+        json.dump(user_data, _json_file, ensure_ascii=False, indent=4, sort_keys=True)
 
 # creating fake deck
 create_deck()
@@ -536,7 +540,7 @@ textures = {
     'trump_num'   : pygame.image.load(resource_path(f"textures/{trump_card[-2:]  + trump_match[trump_card[0]]}.png")).convert_alpha(),
     'trump_suit'  : pygame.image.load(resource_path(f"textures/{trump_card[0]}.png")).convert_alpha(),
     'loading'     : pygame.image.load(resource_path("textures/loading.png")).convert_alpha(),
-    'menu'        : pygame.image.load(resource_path("textures/menu.png")).convert_alpha(),
+    'menu'        : pygame.image.load(resource_path("textures/menu_background.png")).convert_alpha(),
     'menu_button' : pygame.image.load(resource_path("textures/menu_button.png")).convert_alpha(),
     'pause'       : pygame.image.load(resource_path("textures/pause.png")).convert_alpha(),
     'win_panel'   : pygame.image.load(resource_path("textures/win_panel.png")).convert_alpha(),
@@ -549,11 +553,12 @@ for texture in textures.keys():
         textures[texture] = pygame.transform.scale(textures[texture], (120, 175))
 textures['trump_empty'] = pygame.transform.rotate(textures['trump_empty'], 90)
 textures['table'] = pygame.transform.scale(textures['table'], (1325, 340))
-textures['menu'] = pygame.transform.scale(textures['menu'], (640, 450))
+textures['menu'] = pygame.transform.scale(textures['menu'], (640,560))
+textures['menu'].set_alpha(128)
 textures['win_panel'] = pygame.transform.scale(textures['win_panel'], (1500, 240))
 
 # all buttons (start x start y length x length y)
-button_P = pygame.Rect(1400, 15, 80, 80)
+button_P = pygame.Rect(1365, 15, 120, 80)
 button_U = pygame.Rect(525, 320, 420, 100)
 button_M = pygame.Rect(525, 445, 420, 100)
 button_D = pygame.Rect(525, 570, 420, 100)
@@ -626,10 +631,10 @@ while running:
                     menu_mode = False
                     game_init()
                 elif button_M.collidepoint(mouse_pos):
-                    running = False
-                elif button_D.collidepoint(mouse_pos):
                     menu_mode = False
                     stat_mode = True
+                elif button_D.collidepoint(mouse_pos):
+                    running = False
             elif stat_mode:
                 if button_R.collidepoint(mouse_pos):
                     user_data = {'user_games': 0, 'user_wins': 0}
@@ -890,8 +895,8 @@ while running:
                 card_pos_dict[menu_button] -= 1
         if menu_mode:
             screen.blit(*menu_button_anim('menu_up', "  play  ", "continue","", 320))
-            screen.blit(*menu_button_anim('menu_mid', "  exit  ", "  menu  ","", 445))
-            screen.blit(*menu_button_anim('menu_down',"  info  ", "", " return ", 570))
+            screen.blit(*menu_button_anim('menu_mid', "my stats", "  menu  ","", 445))
+            screen.blit(*menu_button_anim('menu_down',"  exit  ", "", " return ", 570))
         elif pause_mode:
             screen.blit(*menu_button_anim('menu_up', "  play  ", "continue", "", 320))
             screen.blit(*menu_button_anim('menu_mid', "  exit  ", "  menu  ", "", 445))
