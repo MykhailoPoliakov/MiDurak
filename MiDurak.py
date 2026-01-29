@@ -225,34 +225,40 @@ def take_from_deck(animation_active = True):
 
 def win_check():
     """check if player won and stop the game"""
-    def end_screen(final_text):
+    def end_screen(final_text,fade,panel,color):
         """render final screen"""
-        x_add = 0
         time = win_check.time - 1
-        if 300 < time < 400:
-            x_add = (time - 300) * 8
-        if time < 400:
-            screen.blit(textures['back_pattern'],(0,0))
-            screen.blit(textures['win_panel'],(0,270))
-            end_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 70)
-            end_text = end_font.render(final_text, True, (0, 0, 0))
-            screen.blit(end_text, (250 - x_add, 350))
+        end_font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 70)
+        end_text = end_font.render(final_text, True, color)
+        if 250 < time < 500:
+            end_panel = textures[panel]
+            end_panel.set_alpha(500 - time)
+            screen.blit(end_panel, (0, 0))
+            end_fade = textures[fade]
+            end_fade.set_alpha(500 - time)
+            screen.blit(end_fade, (0, 0))
+            end_text.set_alpha(500 - time)
+            screen.blit(end_text, (250, 365))
+        else:
+            screen.blit(textures[panel], (0,0))
+            screen.blit(textures[fade], (0, 0))
+            screen.blit(end_text, (250 , 365))
     global menu_mode, win_happened, time_is_up, who_won, game_mode
     if not hasattr(win_check, 'time') or not win_happened:
         win_check.time = 500
     if not card_deck and free_to_move(True):
         if not player1_deck:
-            end_screen('   You Win!   ')
+            end_screen('   You Win!   ','win_fade','win_panel',(0,0,0))
             if not win_happened:
                 user_data['user_wins'] += 1
                 with open(file_name, "w", encoding="utf-8") as _json_file:
                     json.dump(user_data, _json_file, ensure_ascii=False, indent=4, sort_keys=True)
             win_happened = 1
         if not player2_deck:
-            end_screen('Opponent Wins!')
+            end_screen('   You Lost!  ', 'lose_fade','lose_panel',(255,0,0))
             win_happened = 2
     elif time_is_up:
-        end_screen(' Time Is Up!  ')
+        end_screen(' Time Is Up!  ','lose_fade','lose_panel',(255,0,0))
         win_happened = 2
     if win_happened:
         who_won = win_happened
@@ -585,13 +591,17 @@ textures = {
         'face_down_db'   : pygame.image.load(resource_path("textures/face_down_db.png")).convert_alpha(),
         'face_down_bl'   : pygame.image.load(resource_path("textures/face_down_bl.png")).convert_alpha(),
     },
+    'deck_side_col' : {
+        'deck_side_rd' : pygame.image.load(resource_path("textures/deck_side_rd.png")),
+        'deck_side_db' : pygame.image.load(resource_path("textures/deck_side_db.png")),
+        'deck_side_bl' : pygame.image.load(resource_path("textures/deck_side_bl.png")),
+    },
     'button_up'   : pygame.image.load(resource_path("textures/button_up.png")).convert_alpha(),
     'button_down' : pygame.image.load(resource_path("textures/button_down.png")).convert_alpha(),
     'button_act'  : pygame.image.load(resource_path("textures/button_act.png")).convert_alpha(),
     'button_pas'  : pygame.image.load(resource_path("textures/button_pas.png")).convert_alpha(),
     'empty_card'  : pygame.image.load(resource_path("textures/empty_card.png")).convert_alpha(),
     'beaten_card' : pygame.image.load(resource_path("textures/beaten_card.png")).convert_alpha(),
-    'deck_side'   : pygame.image.load(resource_path("textures/deck_side.png")).convert_alpha(),
     'trump_empty' : pygame.image.load(resource_path("textures/empty_card.png")).convert_alpha(),
     'trump_num'   : pygame.image.load(resource_path(f"textures/{trump_card[-2:]  + trump_match[trump_card[0]]}.png")).convert_alpha(),
     'trump_suit'  : pygame.image.load(resource_path(f"textures/{trump_card[0]}.png")).convert_alpha(),
@@ -602,27 +612,31 @@ textures = {
     'menu_but_red': pygame.image.load(resource_path("textures/menu_but_red.png")).convert_alpha(),
     'pause'       : pygame.image.load(resource_path("textures/pause.png")).convert_alpha(),
     'win_panel'   : pygame.image.load(resource_path("textures/win_panel.png")).convert_alpha(),
+    'lose_panel'  : pygame.image.load(resource_path("textures/lose_panel.png")).convert_alpha(),
     'back_pattern': pygame.image.load(resource_path("textures/back_pattern.png")).convert_alpha(),
     'reset'       : pygame.image.load(resource_path("textures/reset.png")).convert_alpha(),
     'logo'        : pygame.image.load(resource_path("textures/logo.png")).convert_alpha(),
     'block'       : pygame.image.load(resource_path("textures/block.png")),
+    'lose_fade'   : pygame.image.load(resource_path("textures/lose_fade.png")),
+    'win_fade'    : pygame.image.load(resource_path("textures/win_fade.png")),
 }
 # resizing
 for texture in textures['cards']:
     textures['cards'][texture] = pygame.transform.scale(textures['cards'][texture], (120, 175))
 for texture in textures.keys():
-    if texture in ['h','d','s','c','empty_card','beaten_card','trump_empty','deck_side']:
+    if texture in ['h','d','s','c','empty_card','beaten_card','trump_empty']:
         textures[texture] = pygame.transform.scale(textures[texture], (120, 175))
 textures['trump_empty'] = pygame.transform.rotate(textures['trump_empty'], 90)
 for texture in textures['table_col']:
     textures['table_col'][texture] = pygame.transform.scale(textures['table_col'][texture], (1325, 340))
 for texture in textures['card_col']:
     textures['card_col'][texture] = pygame.transform.scale(textures['card_col'][texture], (120, 175))
+for texture in textures['deck_side_col']:
+    textures['deck_side_col'][texture] = pygame.transform.scale(textures['deck_side_col'][texture], (120, 175))
 textures['menu'] = pygame.transform.scale(textures['menu'], (640,560))
 textures['pause'].set_alpha(180)
 textures['menu'].set_alpha(128)
 textures['menu_title'].set_alpha(128)
-textures['win_panel'] = pygame.transform.scale(textures['win_panel'], (1500, 240))
 
 # all buttons (start x start y length x length y)
 button_P = pygame.Rect(1365, 15, 120, 80)
@@ -833,7 +847,8 @@ while running:
             screen.blit(textures['trump_num'], (1030 - card_pos_dict['anim_trump'], 292))
             # deck output
             if len(card_deck) > 1:
-                screen.blit(textures['deck_side'], (1125, 265))
+                deck_side_col = 'deck_side_' + user_data['card_color'][-2:]
+                screen.blit(textures['deck_side_col'][deck_side_col], (1125, 265))
                 screen.blit(textures['card_col'][user_data['card_color']], (1140, 265))
                 pygame.draw.rect(screen, (255, 255, 255), (1140, 330, 120, 45))
                 font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
@@ -1010,6 +1025,9 @@ while running:
 
     # menu
     elif pause_mode or menu_mode or stat_mode or color_mode:
+        menu_fade = textures['lose_fade']
+        menu_fade.set_alpha(70)
+        screen.blit(menu_fade, (0, 0))
         # buttons
         for num, menu_button in [(-3, '1_menu'), (-4, '2_menu'), (-5, '3_menu'), (-6, '4_menu')]:
             if mouse_lock == num:
@@ -1085,7 +1103,6 @@ while running:
                 screen.blit(text, (670, 475))
 
             menu_button_anim([3],[" return "], 320)
-
     # if anyone wins
     win_check()
     # end of the tick
