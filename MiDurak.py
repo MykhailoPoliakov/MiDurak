@@ -47,6 +47,10 @@ who_won           = 0
 x_add_player_deck = 0
 x_add_bot_deck = 0
 
+# files
+game_name = "MiDurak"
+file_name = "user_data.json"
+
 # starting values
 all_addable_cards = []    # list of cards to add when attacking (only numbers)
 card_anim_dict    = {}
@@ -78,20 +82,14 @@ bool_dict = {
 }
 card_pos_dict_copy = card_pos_dict.copy()
 bool_dict_copy = bool_dict.copy()
-# checking player statistic
-file_name = "user_data.json"
-if os.path.exists(file_name):
-    with open(file_name,"r",encoding="utf-8") as json_file:
-        user_data = json.load(json_file)
-else:
-    user_data = {
-        'user_games'  : 0,
-        'user_wins'   : 0,
-        'table_color' : 'table_br',
-        'card_color'  : 'card_rd',
-    }
 
 """Small Game Functions"""
+
+def get_save_path():
+    save_dir = os.path.join(os.getenv("LOCALAPPDATA"), game_name)
+    os.makedirs(save_dir, exist_ok=True)
+    return os.path.join(save_dir, file_name)
+
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
@@ -251,7 +249,7 @@ def win_check():
             end_screen('   You Win!   ','win_fade','win_panel',(0,0,0))
             if not win_happened:
                 user_data['user_wins'] += 1
-                with open(file_name, "w", encoding="utf-8") as _json_file:
+                with open(path, "w", encoding="utf-8") as _json_file:
                     json.dump(user_data, _json_file, ensure_ascii=False, indent=4, sort_keys=True)
             win_happened = 1
         if not player2_deck:
@@ -533,7 +531,7 @@ def game_init():
     textures['trump_suit'] = pygame.transform.rotate(textures['trump_suit'], 90)
     # player started the game
     user_data['user_games'] += 1
-    with open(file_name, "w", encoding="utf-8") as _json_file:
+    with open(path, "w", encoding="utf-8") as _json_file:
         json.dump(user_data, _json_file, ensure_ascii=False, indent=4, sort_keys=True)
 
 # creating fake deck
@@ -546,6 +544,18 @@ screen = pygame.display.set_mode((1500, 800), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
 background_color = (0, 55, 0)
 screen.fill(background_color)
+# path
+path = get_save_path()
+try:
+    with open(path,"r",encoding="utf-8") as json_file:
+        user_data = json.load(json_file)
+except (FileNotFoundError, json.JSONDecodeError):
+    user_data = {
+        'user_games'  : 0,
+        'user_wins'   : 0,
+        'table_color' : 'table_br',
+        'card_color'  : 'face_down_rd',
+    }
 
 # textures
 textures = {
@@ -667,6 +677,10 @@ color_card_buttons = {}
 for num, skin in enumerate(textures['card_col']):
     x_cord = 605 + num * 60
     color_card_buttons[skin] = pygame.Rect(x_cord, 415, 50, 50)
+if user_data['table_color'] not in color_table_buttons:
+    user_data['table_color'] = 'table_br'
+if user_data['card_color'] not in color_card_buttons:
+    user_data['card_color'] = 'face_down_rd'
 # main cycle
 running = True
 while running:
@@ -750,7 +764,7 @@ while running:
                 if button_R.collidepoint(mouse_pos):
                     user_data['user_games'] = 0
                     user_data['user_wins'] = 0
-                    with open(file_name, "w", encoding="utf-8") as json_file_f:
+                    with open(path, "w", encoding="utf-8") as json_file_f:
                         json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
                 if button_D.collidepoint(mouse_pos):
                     menu_mode = True
@@ -766,7 +780,7 @@ while running:
                 for skin in color_table_buttons:
                     if color_table_buttons[skin].collidepoint(mouse_pos):
                         user_data['table_color'] = skin
-                        with open(file_name, "w", encoding="utf-8") as json_file_f:
+                        with open(path, "w", encoding="utf-8") as json_file_f:
                             json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
                         break
                 for skin in color_card_buttons:
@@ -776,7 +790,7 @@ while running:
                         if skin == 'face_down_db' and user_data['user_wins'] < 5:
                             continue
                         user_data['card_color'] = skin
-                        with open(file_name, "w", encoding="utf-8") as json_file_f:
+                        with open(path, "w", encoding="utf-8") as json_file_f:
                             json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
                         break
                 if button_D.collidepoint(mouse_pos):
@@ -1074,14 +1088,14 @@ while running:
             font = pygame.font.Font(resource_path("font/sans.ttf"), 30)
             text = font.render(f"Tables : ", True, (255, 255, 255))
             screen.blit(text, (470, 350))
-            x_cord = 605 + 60 * (list(color_table_buttons.keys()).index(user_data['table_color']))
+            x_cord = 605 + 60 * (list(color_table_buttons).index(user_data['table_color']))
             pygame.draw.rect(screen, (255, 0, 0), (x_cord, 345, 50, 50))
             for num, skin in enumerate(textures['skins']['table']):
                 x_cord = 610 + num * 60
                 screen.blit(textures['skins']['table'][skin], (x_cord, 350))
             text = font.render(f"Cards  : ", True, (255, 255, 255))
             screen.blit(text, (470, 420))
-            x_cord = 605 + 60 * (list(color_card_buttons.keys()).index(user_data['card_color']))
+            x_cord = 605 + 60 * (list(color_card_buttons).index(user_data['card_color']))
             pygame.draw.rect(screen, (255, 0, 0), (x_cord, 415, 50, 50))
             for num, card in enumerate(textures['skins']['card']):
                 x_cord = 610 + num * 60
