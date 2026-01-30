@@ -110,7 +110,7 @@ def create_deck():
 
 def free_to_move(win=False) -> bool:
     if (not anim_def_table and not anim_at_table and not animation_list and not take_f_deck_queue and not anim_at_player
-        and not anim_at_player and not anim_def_player and not pause_mode and not menu_mode and not stat_mode):
+        and not anim_at_player and not anim_def_player and game_mode):
         if win or not win_happened:
             return True
     return False
@@ -179,16 +179,16 @@ def who_moves_first():
     else:
         attack_player = 1
 
-def timer():
+def timer(restart = False):
     """timer for player, stops the game if needed"""
     global time_is_up
     if not hasattr(timer, 'time'):
         timer.time = 2100
         timer.old_at = table_at_deck
         timer.old_def = table_def_deck
-    if not pause_mode and free_to_move():
+    if free_to_move():
         timer.time -= 1
-    if timer.old_at != table_at_deck or timer.old_def != table_def_deck or menu_mode:
+    if timer.old_at != table_at_deck or timer.old_def != table_def_deck or restart:
         timer.time = 2100
     timer.old_at = table_at_deck.copy()
     timer.old_def = table_def_deck.copy()
@@ -264,9 +264,11 @@ def win_check():
         who_won = win_happened
         win_check.time -= 1
         if win_check.time <= 0:
+            win_check.time = 500
             time_is_up = False
             win_happened = 0
             game_mode = False
+            timer(True)
             menu_mode = True
 
 def player_change_at(player_deck):
@@ -702,12 +704,11 @@ while running:
         mouse_lock = -7
     elif color_mode:
         if color_card_buttons['face_down_db'].collidepoint(mouse_pos):
-            if user_data['user_wins'] <= 5:
+            if user_data['user_wins'] < 5:
                 mouse_lock = -11
         elif color_card_buttons['face_down_bl'].collidepoint(mouse_pos):
-            if user_data['user_wins'] <= 15:
+            if user_data['user_wins'] < 15:
                 mouse_lock = -12
-
     elif game_mode:
         if button_0.collidepoint(mouse_pos):
             mouse_lock = -1
@@ -781,8 +782,8 @@ while running:
                 if button_D.collidepoint(mouse_pos):
                     menu_mode = True
                     color_mode = False
-            elif game_mode:
-                if button_P.collidepoint(mouse_pos) and not menu_mode:
+            elif game_mode and not win_happened:
+                if button_P.collidepoint(mouse_pos):
                     pause_mode = True
                     game_mode  = False
                 # attack input
@@ -854,7 +855,6 @@ while running:
                 font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
                 text = font.render(str(len(card_deck)), True, (0, 0, 0))
                 screen.blit(text, (1163, 335))
-
         else:
             screen.blit(textures['trump_suit'], (800, 340))
 
@@ -1022,7 +1022,6 @@ while running:
         pause_texture = pygame.transform.scale(textures['pause'], (120 + cord_add * 2, 80 + cord_add * 2))
         screen.blit(pause_texture, (1365 - card_pos_dict['pause'], 15 - card_pos_dict['pause']))
 
-
     # menu
     elif pause_mode or menu_mode or stat_mode or color_mode:
         menu_fade = textures['lose_fade']
@@ -1036,7 +1035,7 @@ while running:
             elif card_pos_dict[menu_button] > 0:
                 card_pos_dict[menu_button] -= 1
         if menu_mode:
-            screen.blit(textures['logo'],(400, 25))
+            screen.blit(textures['logo'],(285, 25))
             menu_button_anim((1,2,3,4),("  play  ", "my stats","my skins","  exit  "), 320, -50,[1])
         elif pause_mode:
             pause_menu = pygame.transform.scale(textures['menu'], (640, 435))
@@ -1073,7 +1072,6 @@ while running:
             text = font.render("Skins", True, (255, 255, 255))
             screen.blit(text, (635, 225))
             font = pygame.font.Font(resource_path("font/sans.ttf"), 30)
-
             text = font.render(f"Tables : ", True, (255, 255, 255))
             screen.blit(text, (470, 350))
             x_cord = 605 + 60 * (list(color_table_buttons.keys()).index(user_data['table_color']))
@@ -1081,7 +1079,6 @@ while running:
             for num, skin in enumerate(textures['skins']['table']):
                 x_cord = 610 + num * 60
                 screen.blit(textures['skins']['table'][skin], (x_cord, 350))
-
             text = font.render(f"Cards  : ", True, (255, 255, 255))
             screen.blit(text, (470, 420))
             x_cord = 605 + 60 * (list(color_card_buttons.keys()).index(user_data['card_color']))
@@ -1101,7 +1098,6 @@ while running:
                 font = pygame.font.Font(resource_path("font/sans.ttf"), 15)
                 text = font.render(f"Win {15 - user_data['user_wins']} more times", True, (255, 255, 255))
                 screen.blit(text, (670, 475))
-
             menu_button_anim([3],[" return "], 320)
     # if anyone wins
     win_check()
