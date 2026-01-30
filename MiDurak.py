@@ -915,7 +915,7 @@ while running:
 
         # TABLE OUTPUT
         # grabbing animation
-        if not table_at_deck and not anim_at_player:
+        if not want_to_grab and not anim_at_player:
             grab_it = 0
         elif want_to_grab:
             grab_it = want_to_grab
