@@ -53,7 +53,7 @@ file_name = "user_data.json"
 
 # starting values
 all_addable_cards = []    # list of cards to add when attacking (only numbers)
-card_anim_dict    = {}
+card_anim_dict    = {'cards' : {}, 'table_check' : {}}
 trump_match = {
     'h' : 'r',
     'd' : 'r',
@@ -83,8 +83,7 @@ bool_dict = {
 card_pos_dict_copy = card_pos_dict.copy()
 bool_dict_copy = bool_dict.copy()
 
-"""Small Game Functions"""
-
+"""Compile Functions"""
 def get_save_path():
     save_dir = os.path.join(os.getenv("LOCALAPPDATA"), game_name)
     os.makedirs(save_dir, exist_ok=True)
@@ -95,6 +94,7 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return relative_path
 
+"""Small Game Functions"""
 def create_deck():
     """creating a deck of cards"""
     global trump_card
@@ -166,7 +166,7 @@ def who_moves_first():
             if cards[0] == trump_card[0] and int(cards[-2:]) < int(lowest_player_card[-2:]):
                 lowest_player_card = cards
         return lowest_player_card[-2:]
-    global attack_player
+    global attack_player, who_won
     if attack_player == 0:
         if lowest_card(card_deck[-6:]) < lowest_card(card_deck[-12:-6]):
             attack_player = 1
@@ -174,8 +174,10 @@ def who_moves_first():
             attack_player = 2
     elif who_won == 2:
         attack_player = 2
+        who_won = 0
     else:
         attack_player = 1
+        who_won = 0
 
 def timer(restart = False):
     """timer for player, stops the game if needed"""
@@ -331,6 +333,13 @@ def defence_button(number,player_deck):
     return False
 
 """Animation Functions"""
+def basic_animation(lock_num, ch_dict, ch_obj, if_const, if_plus, else_minus):
+    if mouse_lock == lock_num:
+        if ch_dict[ch_obj] < if_const:
+            ch_dict[ch_obj] += if_plus
+    elif ch_dict[ch_obj] > 0:
+        ch_dict[ch_obj] -= else_minus
+
 def animation_calc(calc_bool,start_x, start_y, final_x, final_y, anim_name, list_to_del, blit = ('x20','','')):
     if bool_dict[calc_bool]:
         card_pos_dict[anim_name + "diff_x"] = (final_x - start_x) / 10
@@ -371,7 +380,7 @@ def menu_button_anim(pos_num, menu_info, top_cords, add_y = 0, red_button = (0,0
         menu_text = menu_font.render(menu_text, True, (0, 0, 0))
         screen.blit(menu_text,(570 - card_pos_dict[dict_key], y_cords + 30 - menu_dev_2 + add_y))
 
-def take_button_anim() -> str:
+def take_button_text() -> str:
     if attack_player == 1 and free_to_move():
         if len(table_at_deck) == len(table_def_deck) >= 1:
             return "Done"
@@ -492,7 +501,7 @@ def game_init():
     global able_to_grab,anim_at_player, animated_at_cards,anim_def_player,animated_def_cards
     global anim_at_table,anim_def_table,able_to_take,cards_been_beaten,game_mode
     # resetting everything
-    timer()
+    timer(True)
     card_deck = []
     player1_deck = []
     player2_deck = []
@@ -513,7 +522,7 @@ def game_init():
     take_f_deck_queue = []
     able_to_take = True
     cards_been_beaten = False
-    card_anim_dict = {}
+    card_anim_dict = {'cards' : {}, 'table_check' : {}}
     card_pos_dict = card_pos_dict_copy
     bool_dict = bool_dict_copy
     game_mode = True
@@ -648,7 +657,14 @@ for texture in textures['deck_side_col']:
 textures['menu'] = pygame.transform.scale(textures['menu'], (640,560))
 textures['pause'].set_alpha(180)
 textures['menu'].set_alpha(128)
+textures['pause_menu'] = pygame.transform.scale(textures['menu'], (640, 435))
 textures['menu_title'].set_alpha(128)
+textures['menu_fade'] = textures['lose_fade']
+textures['menu_fade'].set_alpha(70)
+textures['button_up'] = pygame.transform.scale(textures['button_up'], (240 , 80 ))
+textures['button_down'] = pygame.transform.scale(textures['button_down'], (240 , 80 ))
+textures['button_pas'] = pygame.transform.scale(textures['button_pas'],(240, 80))
+textures['button_act'] = pygame.transform.scale(textures['button_act'],(240, 80))
 
 # all buttons (start x start y length x length y)
 button_P = pygame.Rect(1365, 15, 120, 80)
@@ -677,10 +693,13 @@ color_card_buttons = {}
 for num, skin in enumerate(textures['card_col']):
     x_cord = 605 + num * 60
     color_card_buttons[skin] = pygame.Rect(x_cord, 415, 50, 50)
-if user_data['table_color'] not in color_table_buttons:
+# data checking
+if user_data['table_color'] not in textures['table_col']:
     user_data['table_color'] = 'table_br'
-if user_data['card_color'] not in color_card_buttons:
+if user_data['card_color'] not in textures['card_col']:
     user_data['card_color'] = 'face_down_rd'
+with open(path, "w", encoding="utf-8") as json_file_f:
+    json.dump(user_data, json_file_f, ensure_ascii=False, indent=4, sort_keys=True)
 # main cycle
 running = True
 while running:
@@ -714,8 +733,9 @@ while running:
             mouse_lock = -4
         elif button_D.collidepoint(mouse_pos):
             mouse_lock = -5
-    if stat_mode and button_R.collidepoint(mouse_pos):
-        mouse_lock = -7
+    if stat_mode:
+        if button_R.collidepoint(mouse_pos):
+            mouse_lock = -7
     elif color_mode:
         if color_card_buttons['face_down_db'].collidepoint(mouse_pos):
             if user_data['user_wins'] < 5:
@@ -823,40 +843,28 @@ while running:
     """ OUTPUT """
     # background
     screen.blit(textures['back_pattern'], (0, 0))
+
     if start_game_mode:
         # table
         screen.blit(textures['table_col'][user_data['table_color']], (5, 235))
 
         # button to change player and it's animation
-        if mouse_lock == -1:
-            if card_pos_dict['anim_but'] < 5:
-                card_pos_dict['anim_but'] += 1
-        elif 0 < card_pos_dict['anim_but']:
-            card_pos_dict['anim_but'] -= 1
-        anim_but = card_pos_dict['anim_but']
-        textures['button_up'] = pygame.transform.scale(textures['button_up'], (240 , 80 ))
-        textures['button_down'] = pygame.transform.scale(textures['button_down'], (240 , 80 ))
+        basic_animation(-1, card_pos_dict, 'anim_but', 5, 1, 1)
         screen.blit(textures['button_up'], (1020, 455))
-        move = take_button_anim()
+        move = take_button_text()
         if move:
-            textures['button_act'] = pygame.transform.scale(textures['button_act'],(240, 80))
-            screen.blit(textures['button_act'], (1020, 455 + anim_but * 2))
+            screen.blit(textures['button_act'], (1020, 455 + card_pos_dict['anim_but'] * 2))
             font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
             text = font.render(move, True, (100, 0, 0))
-            screen.blit(text, (1057, 470 + anim_but * 2))
+            screen.blit(text, (1057, 470 + card_pos_dict['anim_but'] * 2))
         else:
-            textures['button_pas'] = pygame.transform.scale(textures['button_pas'],(240, 80))
             screen.blit(textures['button_pas'], (1020, 455))
         screen.blit(textures['button_down'], (1020, 455))
 
-        # deck output
-        if card_deck != []:
+        # deck and trump card output
+        if card_deck:
             # trump card animation
-            if mouse_lock == -2:
-                if 30 > card_pos_dict['anim_trump']:
-                    card_pos_dict['anim_trump'] += 4
-            elif card_pos_dict['anim_trump'] > 0:
-                card_pos_dict['anim_trump'] -= 4
+            basic_animation(-2,card_pos_dict, 'anim_trump', 30,4,4)
             screen.blit(textures['trump_empty'], (1030 - card_pos_dict['anim_trump'], 292))
             screen.blit(textures['trump_suit'], (1030 - card_pos_dict['anim_trump'], 292))
             screen.blit(textures['trump_num'], (1030 - card_pos_dict['anim_trump'], 292))
@@ -870,102 +878,82 @@ while running:
                 text = font.render(str(len(card_deck)), True, (0, 0, 0))
                 screen.blit(text, (1163, 335))
         else:
-            screen.blit(textures['trump_suit'], (800, 340))
+            screen.blit(textures['trump_suit'], (1030, 292))
 
         # timer output
         y_length = int(timer() / 7)
-        if y_length > 115:
-            add_color = 80
-        elif add_color > 0:
-            add_color -= 5
+        add_color = 115 if y_length > 115 else (add_color - 5 if add_color > 0 else 0)
         pygame.draw.rect(screen, (0, 0, 0), (1385, 265, 55, 275))
         pygame.draw.rect(screen, (255, 128 + int(add_color/2) ,add_color), (1385, 560 - y_length, 55, y_length))
         screen.blit(textures['loading'], (1375, 240))
 
         # opponent cards output
         for index, card in enumerate(player2_deck):
-            card_pop = True
+            # filter
             index_list = 10
             for index2 in range(len(animation_list)):
                 if int(animation_list[index2][1]) <= index_list and animation_list[index2][0] == 'pl2':
                     index_list = animation_list[index2][1]
-            if not (index_list == 10 or index_list > index):
-                card_pop = False
-            if card in table_at_deck or card in table_def_deck:
-                card_pop = False
-            if card in animated_def_cards or card in animated_at_cards:
-                card_pop = True
+            if card not in animated_at_cards + animated_def_cards:
+                if not (index_list == 10 or index_list > index):
+                    continue
+                if card in table_at_deck + table_def_deck:
+                    continue
             # output
-            if card_pop:
-                screen.blit(textures['card_col'][user_data['card_color']], (15 + x_add_bot_deck * index, 30))
-                # to see bot cards
+            screen.blit(textures['card_col'][user_data['card_color']], (15 + x_add_bot_deck * index, 30))
 
         # player cards output
-        for card in card_anim_dict.copy():
-            if card not in player1_deck and not card in ['51','52','53','54','55','56']:
-                del card_anim_dict[card]
+        for card in card_anim_dict['cards'].copy():
+            if card not in player1_deck:
+                del card_anim_dict['cards'][card]
         for index, card in enumerate(player1_deck):
-            # cord calculation
-            x_cord = 15 + x_add_player_deck * index
-            if card not in card_anim_dict:
-                card_anim_dict[card] = 600
-            if mouse_lock == index:
-                if 570 <= card_anim_dict[card]:
-                    card_anim_dict[card] -= 5
-            elif card_anim_dict[card] <= 595:
-                card_anim_dict[card] += 5
-            y_cord = card_anim_dict[card]
-            # if card pop up
-            card_pop = True
+            # filter
             index_list = 10
             for index2 in range(len(animation_list)):
                 if int(animation_list[index2][1]) <= index_list and animation_list[index2][0] == 'pl1':
                     index_list = animation_list[index2][1]
-            if not (index_list == 10 or index_list > index):
-                card_pop = False
-            if card in table_at_deck or card in table_def_deck:
-                card_pop = False
-            if card in animated_def_cards or card in animated_at_cards:
-                card_pop = True
+            if card not in animated_at_cards + animated_def_cards:
+                if not (index_list == 10 or index_list > index):
+                    continue
+                if card in table_at_deck + table_def_deck:
+                    continue
+            # cord calculation
+            if card not in card_anim_dict['cards']:
+                card_anim_dict['cards'][card] = 0
+            basic_animation(index, card_anim_dict['cards'], card,30,5,5)
+            y_cord = 600 - card_anim_dict['cards'][card]
+            x_cord = 15 + x_add_player_deck * index
             # output
-            if card_pop:
-                screen.blit(textures['empty_card'], (x_cord, y_cord))
-                screen.blit(textures['cards'][card[-2:] + trump_match[card[0]]], (x_cord, y_cord))
-                screen.blit(textures[card[0]], (x_cord, y_cord))
+            screen.blit(textures['empty_card'], (x_cord, y_cord))
+            screen.blit(textures['cards'][card[-2:] + trump_match[card[0]]], (x_cord, y_cord))
+            screen.blit(textures[card[0]], (x_cord, y_cord))
 
-        # table output
+        # TABLE OUTPUT
         # grabbing animation
-        if not table_at_deck or anim_at_player:
+        if not table_at_deck and not anim_at_player:
             grab_it = 0
-        elif want_to_grab == 1:
-            grab_it = 1
-        elif want_to_grab == 2:
-            grab_it = 2
-        if grab_it == 1:
+        elif want_to_grab:
+            grab_it = want_to_grab
+        if grab_it:
             if card_pos_dict['p_y_cord'] < 100:
-                card_pos_dict['p_y_cord'] += 4
-        elif grab_it == 2:
-            if card_pos_dict['p_y_cord'] > -100:
-                card_pos_dict['p_y_cord'] -= 4
+                card_pos_dict['p_y_cord'] += 5
         else:
             card_pos_dict['p_y_cord'] = 0
-        y_add = card_pos_dict['p_y_cord']
+        y_add = card_pos_dict['p_y_cord'] if grab_it == 1 else - card_pos_dict['p_y_cord']
+        # table checking animation
+        for index in range(len(table_at_deck)):
+            # check the table animation
+            if str(51 + index) not in card_anim_dict['table_check']:
+                card_anim_dict['table_check'][str(51 + index)] = 0
+            if index < len(table_def_deck):
+                basic_animation(51 + index, card_anim_dict['table_check'], str(51 + index), 20, 4, 2)
+            else:
+                card_anim_dict['table_check'][str(51 + index)] = 0
         # attack cards and crazy animation calculations
         for index, card in enumerate(table_at_deck):
             if card in animated_at_cards:
                 continue
-            # check the table animation
-            if str(51 + index) not in card_anim_dict:
-                card_anim_dict[str(51 + index)] = 0
-            if index < len(table_def_deck):
-                if mouse_lock == 51 + index:
-                    if 16 >= card_anim_dict[str(51 + index)]:
-                        card_anim_dict[str(51 + index)] += 4
-                elif card_anim_dict[str(51 + index)] > 0:
-                    card_anim_dict[str(51 + index)] -= 2
-            else:
-                card_anim_dict[str(51 + index)] = 0
-            anim_add = card_anim_dict[str(51 + index)]
+            anim_add = card_anim_dict['table_check'][str(51 + index)]
             x_cord = 40 + 145 * index - anim_add
             y_cord = 300 + y_add - anim_add if index % 2 == 0 else 270 + y_add - anim_add
             # throwing card off animation
@@ -994,7 +982,7 @@ while running:
         for index, card in enumerate(table_def_deck):
             if card in animated_def_cards:
                 continue
-            anim_add = card_anim_dict[str(51 + index)]
+            anim_add = card_anim_dict['table_check'][str(51 + index)]
             x_cord = 70 + 145 * index + anim_add
             y_cord = 340 + y_add + anim_add if index % 2 == 0 else 310 + y_add + anim_add
             # throwing card off animation
@@ -1027,38 +1015,34 @@ while running:
                 'deck', animation_list, (card,'take_from_deck'))
 
         # pause
-        if mouse_lock == -8:
-            if card_pos_dict['pause'] < 6:
-                card_pos_dict['pause'] += 1
-        elif card_pos_dict['pause'] > 0:
-            card_pos_dict['pause'] -= 2
+        basic_animation(-8, card_pos_dict, 'pause', 6, 1, 2)
         cord_add = card_pos_dict['pause']
         pause_texture = pygame.transform.scale(textures['pause'], (120 + cord_add * 2, 80 + cord_add * 2))
         screen.blit(pause_texture, (1365 - card_pos_dict['pause'], 15 - card_pos_dict['pause']))
 
+        # if anyone wins
+        win_check()
+
     # menu
     elif pause_mode or menu_mode or stat_mode or color_mode:
-        menu_fade = textures['lose_fade']
-        menu_fade.set_alpha(70)
-        screen.blit(menu_fade, (0, 0))
-        # buttons
+        # menu background
+        screen.blit(textures['menu_fade'], (0, 0))
+        # buttons animation
         for num, menu_button in [(-3, '1_menu'), (-4, '2_menu'), (-5, '3_menu'), (-6, '4_menu')]:
-            if mouse_lock == num:
-                if card_pos_dict[menu_button] < 10:
-                    card_pos_dict[menu_button] += 2
-            elif card_pos_dict[menu_button] > 0:
-                card_pos_dict[menu_button] -= 1
+            basic_animation(num, card_pos_dict, menu_button, 10, 2, 2)
+        # main menu
         if menu_mode:
             screen.blit(textures['logo'],(285, 25))
             menu_button_anim((1,2,3,4),("  play  ", "my stats","my skins","  exit  "), 320, -50,[1])
+        # pause
         elif pause_mode:
-            pause_menu = pygame.transform.scale(textures['menu'], (640, 435))
-            screen.blit(pause_menu, (415, 140))
+            screen.blit(textures['pause_menu'], (415, 140))
             screen.blit(textures['menu_title'], (415, 140))
             font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
             text = font.render("Pause", True, (255, 255, 255))
             screen.blit(text, (635, 215))
             menu_button_anim((1, 2), ("continue", "  menu  "), 320)
+        # check statistic
         elif stat_mode:
             screen.blit(textures['menu'], (415, 150))
             screen.blit(textures['menu_title'], (415, 150))
@@ -1067,18 +1051,13 @@ while running:
             screen.blit(text, (470, 350))
             text = font.render(f"Games won     : {user_data['user_wins']}", True, (255, 255, 255))
             screen.blit(text, (470, 390))
-            menu_button_anim([3],[" return "], 320)
             font = pygame.font.Font(resource_path("font/pixel_font.ttf"), 40)
             text = font.render("Stats", True, (255, 255, 255))
             screen.blit(text, (635, 225))
-            if mouse_lock == -7:
-                if card_pos_dict['angle'] < 100:
-                    card_pos_dict['angle'] += 10
-            elif card_pos_dict['angle'] > 0:
-                card_pos_dict['angle'] -= 20
+            basic_animation(-7, card_pos_dict, 'angle', 100, 10, 20)
             reset_texture = pygame.transform.rotate(textures['reset'], card_pos_dict['angle'])
-            rect = reset_texture.get_rect(center=(950, 385))
-            screen.blit(reset_texture, rect)
+            screen.blit(reset_texture, reset_texture.get_rect(center=(950, 385)))
+            menu_button_anim([3], [" return "], 320)
         elif color_mode:
             screen.blit(textures['menu'], (415, 150))
             screen.blit(textures['menu_title'], (415, 150))
@@ -1102,19 +1081,18 @@ while running:
                 screen.blit(textures['skins']['card'][card], (x_cord, 420))
             if user_data['user_wins'] < 5:
                 screen.blit(textures['block'], (670, 420))
+                if mouse_lock == -11:
+                    font = pygame.font.Font(resource_path("font/sans.ttf"), 15)
+                    text = font.render(f"Win {5 - user_data['user_wins']} more times", True, (255, 255, 255))
+                    screen.blit(text, (620, 475))
             if user_data['user_wins'] < 15:
                 screen.blit(textures['block'], (730, 420))
-            if mouse_lock == -11:
-                font = pygame.font.Font(resource_path("font/sans.ttf"), 15)
-                text = font.render(f"Win {5 - user_data['user_wins']} more times", True, (255, 255, 255))
-                screen.blit(text, (620, 475))
-            if mouse_lock == -12:
-                font = pygame.font.Font(resource_path("font/sans.ttf"), 15)
-                text = font.render(f"Win {15 - user_data['user_wins']} more times", True, (255, 255, 255))
-                screen.blit(text, (670, 475))
+                if mouse_lock == -12:
+                    font = pygame.font.Font(resource_path("font/sans.ttf"), 15)
+                    text = font.render(f"Win {15 - user_data['user_wins']} more times", True, (255, 255, 255))
+                    screen.blit(text, (670, 475))
             menu_button_anim([3],[" return "], 320)
-    # if anyone wins
-    win_check()
+
     # end of the tick
     pygame.display.flip()
     clock.tick(60)
