@@ -108,7 +108,7 @@ class Game:
 
     def play(self, index: int) -> None:
         # game is finished
-        if self.check_win():
+        if self.winner != None:
             return
 
         # index out of bound
@@ -140,6 +140,8 @@ class Game:
                     self.table.cards[-1].append(self.players[id].cards.pop(index))
                     # change active
                     self.active = self.attacker
+
+        self.check_win()
 
 
 
